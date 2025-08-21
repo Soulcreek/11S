@@ -1,0 +1,36 @@
+// File: app.js
+// Description: Main application file for the 11seconds API server.
+
+const path = require('path');
+// Load environment variables from .env file
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+const express = require('express');
+const cors = require('cors');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const gameRoutes = require('./routes/game'); // <-- Import game routes
+
+// Initialize the Express app
+const app = express();
+
+// --- Middleware ---
+// Enable CORS for all routes, allowing requests from our web/mobile frontends
+app.use(cors());
+// Parse incoming JSON request bodies
+app.use(express.json());
+
+// --- Routes ---
+// All routes related to authentication will be prefixed with /api/auth
+app.use('/api/auth', authRoutes);
+// All routes related to game logic will be prefixed with /api/game
+app.use('/api/game', gameRoutes); // <-- Use game routes
+
+// --- Server Startup ---
+// Use the PORT from environment variables, or default to 3001 for local dev
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

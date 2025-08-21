@@ -1,0 +1,5 @@
+# Ignoriere sensible Konfigurationsdateien
+.env
+
+# Ignoriere Vendor-Verzeichnisse von Composer
+/vendor
