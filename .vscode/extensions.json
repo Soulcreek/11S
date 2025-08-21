@@ -1,0 +1,15 @@
+{
+    "recommendations": [
+        "ms-vscode.vscode-json",
+        "ms-vscode.powershell",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "formulahendry.auto-rename-tag",
+        "christian-kohler.path-intellisense",
+        "ms-vscode-remote.remote-ftp",
+        "liximomo.sftp",
+        "humao.rest-client",
+        "ms-vscode.vscode-node-azure-pack"
+    ]
+}

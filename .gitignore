@@ -1,5 +1,39 @@
-# Ignoriere sensible Konfigurationsdateien
-.env
+# 11Seconds Quiz Game - Git Ignore File
 
-# Ignoriere Vendor-Verzeichnisse von Composer
+# Environment files (WICHTIG: Zugangsdaten schützen!)
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.netcup
+.env.deployment
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+local-database.db
+quiz_game_dev.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Deployment files
+deploy-*/
+build-*/
+*.zip
+11seconds-*.zip
+.deployment-info.json
+
+# Logs
+*.log
+server.log
+game-server.log
+ai-deployment.log
+
+# Vendor-Verzeichnisse von Composer
 /vendor

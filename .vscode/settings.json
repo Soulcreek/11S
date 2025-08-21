@@ -1,0 +1,29 @@
+{
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/*.db": true,
+        "**/deploy-*": false,
+        "**/.git": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/deploy-*": true
+    },
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "files.associations": {
+        "*.env.*": "properties",
+        "Dockerfile*": "dockerfile"
+    },
+    "emmet.includeLanguages": {
+        "javascript": "javascriptreact"
+    },
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit"
+    },
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/deploy-*/**": true,
+        "**/*.db": true
+    }
+}

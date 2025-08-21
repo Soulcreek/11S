@@ -1,8 +1,10 @@
-// File: db.js
+// File: api/db.js
 // Description: Creates and manages the connection to the MySQL database.
 
-// Load environment variables from .env file
-require('dotenv').config();
+const path = require('path');
+// Lade die .env-Datei aus dem Hauptverzeichnis
+// KORREKTUR: Der Pfad geht jetzt nur eine Ebene nach oben (von /api/ zu /)
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const mysql = require('mysql2');
 
@@ -10,6 +12,7 @@ const mysql = require('mysql2');
 // connection for every single query.
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
+  port: process.env.DB_PORT, // Use the port from the .env file
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
