@@ -1,19 +1,26 @@
 {
-  "name": "11seconds-monorepo",
+  "name": "11seconds-fullstack-server",
   "version": "1.0.0",
-  "private": true,
-  "description": "Monorepo for the 11seconds quiz game (API, Web, Mobile).",
-  "workspaces": [
-    "api",
-    "web",
-    "mobile"
-  ],
+  "description": "Full-stack Node.js server for 11Seconds Quiz Game with React frontend and API backend",
+  "main": "app.js",
   "scripts": {
-    "start:api": "npm start --workspace=api",
-    "start:web": "npm start --workspace=web",
-    "dev:api": "npm run dev --workspace=api"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
-  }
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": ["react", "quiz", "game", "fullstack", "mysql", "nodejs"],
+  "author": "11Seconds Team",
+  "license": "MIT"
 }

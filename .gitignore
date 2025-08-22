@@ -6,8 +6,10 @@
 .env.local
 .env.development
 .env.production
-.env.netcup
-.env.deployment
+
+# Deployment system configuration (contains credentials)
+_deployment-system/deployment-config.env
+_deployment-system/.env*
 
 # Database files
 *.db
@@ -22,6 +24,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Build directories
+/web/build
+/httpdocs
+
 # Deployment files
 deploy-*/
 build-*/
@@ -35,5 +41,23 @@ server.log
 game-server.log
 ai-deployment.log
 
-# Vendor-Verzeichnisse von Composer
-/vendor
+# Temporary and backup directories
+/_backup_deprecated
+/temp
+/tmp
+
+# IDE and editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

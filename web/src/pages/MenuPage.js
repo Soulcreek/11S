@@ -2,11 +2,19 @@
 // Description: Main menu page with navigation buttons
 
 import React, { useState, useEffect } from 'react';
+import GameSetup from '../components/GameSetup';
+import soundEffects from '../utils/soundEffects';
+import achievementSystem from '../utils/achievementSystem';
+import overallScoreSystem from '../utils/overallScoreSystem';
 
-const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) => {
+const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onShowMultiplayer, onLogout }) => {
   const [userInfo, setUserInfo] = useState(null);
-  const [deployStatus, setDeployStatus] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showGameSetup, setShowGameSetup] = useState(false);
+  const [playerStats, setPlayerStats] = useState({});
+  const [levelProgress, setLevelProgress] = useState({});
+  const [recentAchievements, setRecentAchievements] = useState([]);
 
   useEffect(() => {
     // Get username from localStorage
@@ -16,15 +24,57 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
     }
     const role = localStorage.getItem('userRole');
     setIsAdmin(role === 'admin');
-    fetchDeployStatus();
+    loadPlayerData();
   }, []);
 
-  const fetchDeployStatus = () => {
-    fetch('/deploy-status.txt')
-      .then(res => res.text())
-      .then(text => setDeployStatus(text))
-      .catch(() => setDeployStatus('Kein Deployment-Status gefunden.'));
+  const loadPlayerData = () => {
+    try {
+      // Load player stats and progress
+      setPlayerStats(overallScoreSystem.getPlayerStats());
+      setLevelProgress(overallScoreSystem.getLevelProgress());
+      
+      // Get recent achievements
+      const achievements = achievementSystem.getAllAchievements();
+      const recent = Object.values(achievements)
+        .filter(a => a.unlocked)
+        .sort((a, b) => new Date(b.unlockedAt) - new Date(a.unlockedAt))
+        .slice(0, 3);
+      setRecentAchievements(recent);
+    } catch (error) {
+      console.error('Error loading player data:', error);
+    }
   };
+
+  const toggleSound = () => {
+    const newState = soundEffects.toggle();
+    setSoundEnabled(newState);
+    if (newState) {
+      soundEffects.beep(440, 100, 0.1); // Test beep when enabled
+    }
+  };
+
+  const handleShowGameSetup = () => {
+    setShowGameSetup(true);
+  };
+
+  const handleBackToMenu = () => {
+    setShowGameSetup(false);
+  };
+
+  const handleStartGameWithConfig = (gameConfig) => {
+    setShowGameSetup(false);
+    onStartGame(gameConfig);
+  };
+
+  // Show GameSetup component if requested
+  if (showGameSetup) {
+    return (
+      <GameSetup 
+        onStartGame={handleStartGameWithConfig} 
+        onBack={handleBackToMenu}
+      />
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -37,28 +87,76 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
           {userInfo && (
             <div style={styles.welcomeContainer}>
               <p style={styles.welcomeText}>
-                Welcome, <strong>{userInfo.username}</strong>!
+                Willkommen, <strong>{userInfo.username}</strong>!
               </p>
+              
+              {/* Player Progress Summary */}
+              <div style={styles.playerProgress}>
+                <div style={styles.levelBadge}>
+                  <span style={styles.levelText}>Level {levelProgress.level || 1}</span>
+                  <div style={styles.xpBar}>
+                    <div 
+                      style={{
+                        ...styles.xpFill,
+                        width: `${levelProgress.progressPercent || 0}%`
+                      }}
+                    ></div>
+                  </div>
+                  <span style={styles.xpText}>
+                    {levelProgress.currentXP || 0} / {levelProgress.nextLevelXP || 100} XP
+                  </span>
+                </div>
+
+                {/* Quick Stats */}
+                <div style={styles.quickStats}>
+                  <div style={styles.statItem}>
+                    <span style={styles.statValue}>{playerStats.totalGames || 0}</span>
+                    <span style={styles.statLabel}>Spiele</span>
+                  </div>
+                  <div style={styles.statItem}>
+                    <span style={styles.statValue}>{((playerStats.correctPercentage || 0) * 100).toFixed(0)}%</span>
+                    <span style={styles.statLabel}>Genauigkeit</span>
+                  </div>
+                  <div style={styles.statItem}>
+                    <span style={styles.statValue}>{playerStats.bestStreak || 0}</span>
+                    <span style={styles.statLabel}>Beste Serie</span>
+                  </div>
+                </div>
+
+                {/* Recent Achievements */}
+                {recentAchievements.length > 0 && (
+                  <div style={styles.recentAchievements}>
+                    <span style={styles.achievementsTitle}>🏆 Neueste Erfolge:</span>
+                    <div style={styles.achievementsList}>
+                      {recentAchievements.map(achievement => (
+                        <span 
+                          key={achievement.id} 
+                          style={styles.achievementBadge}
+                          title={achievement.name}
+                        >
+                          {achievement.icon}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-          <div style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
-            <b>Deployment-Status:</b> {deployStatus}
-            <button onClick={fetchDeployStatus} style={{ marginLeft: '10px', fontSize: '12px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #ccc', background: '#f8f8f8', cursor: 'pointer' }}>Aktualisieren</button>
-          </div>
         </div>
 
         {/* Main Menu Buttons */}
         <div style={styles.buttonContainer}>
           <button
-            onClick={onStartGame}
+            onClick={handleShowGameSetup}
             style={{ ...styles.menuButton, ...styles.primaryButton }}
             className="menu-button"
           >
             <div style={styles.buttonIcon}>🎯</div>
             <div style={styles.buttonContent}>
-              <h3 style={styles.buttonTitle}>Solo Game</h3>
+              <h3 style={styles.buttonTitle}>Spiel starten</h3>
               <p style={styles.buttonDescription}>
-                5 questions, 11 seconds each
+                Modus, Kategorie & Schwierigkeit wählen
               </p>
             </div>
           </button>
@@ -70,9 +168,9 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
           >
             <div style={styles.buttonIcon}>🏆</div>
             <div style={styles.buttonContent}>
-              <h3 style={styles.buttonTitle}>Highscores</h3>
+              <h3 style={styles.buttonTitle}>Bestenliste</h3>
               <p style={styles.buttonDescription}>
-                View top players & your best scores
+                Top-Spieler & deine besten Punkte
               </p>
             </div>
           </button>
@@ -84,9 +182,9 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
           >
             <div style={styles.buttonIcon}>⚙️</div>
             <div style={styles.buttonContent}>
-              <h3 style={styles.buttonTitle}>Settings</h3>
+              <h3 style={styles.buttonTitle}>Einstellungen</h3>
               <p style={styles.buttonDescription}>
-                Game configuration
+                Spiel-Konfiguration
               </p>
             </div>
           </button>
@@ -99,21 +197,22 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
               <div style={styles.buttonIcon}>🛠️</div>
               <div style={styles.buttonContent}>
                 <h3 style={styles.buttonTitle}>Admin</h3>
-                <p style={styles.buttonDescription}>Raw data & user management</p>
+                <p style={styles.buttonDescription}>Rohdaten & Benutzerverwaltung</p>
               </div>
             </button>
           )}
 
-          {/* Future game modes */}
+          {/* Multiplayer game modes */}
           <button
-            style={{ ...styles.menuButton, ...styles.disabledButton }}
-            disabled
+            onClick={onShowMultiplayer}
+            style={{ ...styles.menuButton, ...styles.multiplayerButton }}
+            className="menu-button"
           >
             <div style={styles.buttonIcon}>👥</div>
             <div style={styles.buttonContent}>
-              <h3 style={styles.buttonTitle}>Multiplayer</h3>
+              <h3 style={styles.buttonTitle}>Mehrspieler</h3>
               <p style={styles.buttonDescription}>
-                Coming soon...
+                Offline-Mehrspieler für 2-4 Spieler
               </p>
             </div>
           </button>
@@ -122,11 +221,23 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
         {/* Footer with logout and settings */}
         <div style={styles.footer}>
           <button
+            onClick={toggleSound}
+            style={{
+              ...styles.logoutButton,
+              backgroundColor: soundEnabled ? '#4CAF50' : '#666',
+              marginRight: '10px'
+            }}
+            title={soundEnabled ? 'Sound AN - Klicken zum Deaktivieren' : 'Sound AUS - Klicken zum Aktivieren'}
+          >
+            {soundEnabled ? '🔊' : '🔇'} Sound
+          </button>
+          
+          <button
             onClick={onLogout}
             style={styles.logoutButton}
             className="logout-button"
           >
-            🚪 Logout
+            🚪 Abmelden
           </button>
 
           <div style={styles.footerInfo}>
@@ -230,6 +341,14 @@ const styles = {
     background: 'linear-gradient(135deg, #2196F3, #1976D2)',
     color: 'white'
   },
+  settingsButton: {
+    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+    color: 'white'
+  },
+  multiplayerButton: {
+    background: 'linear-gradient(135deg, #9c27b0 0%, #673ab7 100%)',
+    color: 'white'
+  },
   disabledButton: {
     background: 'linear-gradient(135deg, #ccc, #999)',
     color: '#666',
@@ -315,6 +434,86 @@ const styles = {
     bottom: '10%',
     right: '10%',
     animationDelay: '1s'
+  },
+  // New profile styles
+  playerProgress: {
+    marginTop: '15px',
+    padding: '15px',
+    background: 'white',
+    borderRadius: '10px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+  },
+  levelBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '15px'
+  },
+  levelText: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#667eea',
+    minWidth: '60px'
+  },
+  xpBar: {
+    flex: 1,
+    height: '8px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '4px',
+    overflow: 'hidden'
+  },
+  xpFill: {
+    height: '100%',
+    background: 'linear-gradient(45deg, #4CAF50, #8BC34A)',
+    borderRadius: '4px',
+    transition: 'width 0.3s ease'
+  },
+  xpText: {
+    fontSize: '11px',
+    color: '#666',
+    minWidth: '80px',
+    textAlign: 'right'
+  },
+  quickStats: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    marginBottom: '15px'
+  },
+  statItem: {
+    textAlign: 'center'
+  },
+  statValue: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#667eea',
+    display: 'block'
+  },
+  statLabel: {
+    fontSize: '10px',
+    color: '#666',
+    textTransform: 'uppercase'
+  },
+  recentAchievements: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  achievementsTitle: {
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#666'
+  },
+  achievementsList: {
+    display: 'flex',
+    gap: '5px'
+  },
+  achievementBadge: {
+    fontSize: '18px',
+    padding: '2px',
+    borderRadius: '4px',
+    background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+    cursor: 'help'
   }
 };
 

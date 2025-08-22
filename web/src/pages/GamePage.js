@@ -3,51 +3,111 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import extraQuestions from '../data/extraQuestions';
-import { gameStats, userManager } from '../utils/localStorage';
+import soundEffects from '../utils/soundEffects';
+import achievementSystem from '../utils/achievementSystem';
+import overallScoreSystem from '../utils/overallScoreSystem';
+import { 
+  calculateScore, 
+  isAnswerCorrect, 
+  generateGameQuestions, 
+  saveGameResult, 
+  GAME_SETTINGS 
+} from '../utils/gameLogic';
 
 const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
+  // Extract game configuration with defaults
+  const {
+    mode = 'klassisch',
+    categories = ['all'],
+    difficulty = 'all',
+    questions: totalQuestions = 5,
+    timePerQuestion = 11
+  } = gameConfig;
+
   // Game state
-  // Shuffle helper
-  const shuffleArray = (arr) => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
   const [gameState, setGameState] = useState('playing'); // 'playing', 'finished'
-  const [questions] = useState(extraQuestions);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [shuffledQuestions, setShuffledQuestions] = useState(() => shuffleArray([...extraQuestions.slice(0, 5)]));
+  const [shuffledQuestions, setShuffledQuestions] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
-  const [timeLeft, setTimeLeft] = useState(11);
-  const [scores, setScores] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(timePerQuestion);
+  const [questionScores, setQuestionScores] = useState([]);
   const [finalScore, setFinalScore] = useState(0);
   const [notification, setNotification] = useState({ message: '', type: '' });
+  const [streakCount, setStreakCount] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
 
   const submitRef = useRef();
   submitRef.current = () => handleSubmitAnswer();
 
-  // Timer
+  // Utility function to shuffle array
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Timer with dynamic time per question - more stable
   useEffect(() => {
-    if (gameState === 'playing' && timeLeft > 0) {
+    // Only start timer if we have questions loaded and game is playing
+    if (gameState === 'playing' && shuffledQuestions.length > 0 && timeLeft > 0) {
       const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
+        const newTime = timeLeft - 1;
+        setTimeLeft(newTime);
+        
+        // Sound effects for timer (only if enabled)
+        if (newTime === 3) {
+          // soundEffects.warning(); // Warning at 3 seconds
+        } else if (newTime <= 3 && newTime > 0) {
+          // soundEffects.tick(); // Tick for last 3 seconds
+        }
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && gameState === 'playing') {
+    } else if (timeLeft === 0 && gameState === 'playing' && shuffledQuestions.length > 0) {
+      // soundEffects.timeout(); // Timeout sound
       // Time's up, submit answer via ref to avoid hook dependency on handler
-      submitRef.current();
+      setTimeout(() => {
+        if (submitRef.current) {
+          submitRef.current();
+        }
+      }, 100);
     }
-  }, [timeLeft, gameState]);
+  }, [timeLeft, gameState, shuffledQuestions.length]);
 
-  // ensure shuffled on mount and select random 5 questions
+  // Filter and shuffle questions based on game config - only on mount
   useEffect(() => {
-    const allQuestions = [...extraQuestions];
-    const selectedQuestions = shuffleArray(allQuestions).slice(0, 5);
+    let filteredQuestions = [...extraQuestions];
+    
+    // Filter by categories
+    if (!categories.includes('all')) {
+      filteredQuestions = filteredQuestions.filter(q => categories.includes(q.category));
+    }
+    
+    // Filter by difficulty
+    if (difficulty !== 'all') {
+      filteredQuestions = filteredQuestions.filter(q => q.difficulty === difficulty);
+    }
+    
+    // Shuffle and select required number of questions
+    const selectedQuestions = shuffleArray(filteredQuestions).slice(0, totalQuestions);
     setShuffledQuestions(selectedQuestions);
-  }, []);
+    
+    // Reset timer when questions are loaded
+    setTimeLeft(timePerQuestion);
+    
+    console.log(`Loaded ${selectedQuestions.length} questions:`, selectedQuestions.map(q => ({
+      id: q.question_id,
+      difficulty: q.difficulty,
+      category: q.category,
+      question: q.question_text.substring(0, 50) + '...'
+    })));
+    
+    // Play game start sound (disabled for now)
+    // setTimeout(() => soundEffects.gameStart(), 500);
+  }, []); // Only run on mount to avoid reloading during gameplay
 
   // Load questions when component mounts
   // Notification helper
@@ -101,12 +161,30 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
   };
 
   const handleSubmitAnswer = () => {
-    const currentQuestion = questions[currentQuestionIndex];
+    const currentQuestion = shuffledQuestions[currentQuestionIndex];
     const answer = currentAnswer || '0';
-    // calculate with difficulty multiplier
+    
+    // Calculate base score with difficulty multiplier
     let rawScore = calculateQuestionScore(answer, currentQuestion.correct_answer);
     const diffMult = currentQuestion.difficulty === 'medium' ? 1.1 : currentQuestion.difficulty === 'hard' ? 1.25 : 1.0;
     let score = Math.round(Math.min(120, rawScore * diffMult));
+    
+    // Check if answer is good enough for streak (80+ points)
+    const isGoodAnswer = score >= 80;
+    let newStreakCount = streakCount;
+    
+    if (isGoodAnswer) {
+      newStreakCount = streakCount + 1;
+      setStreakCount(newStreakCount);
+      setMaxStreak(Math.max(maxStreak, newStreakCount));
+      
+      // Streak bonus: +5% per consecutive correct answer
+      const streakBonus = 1 + (newStreakCount - 1) * 0.05;
+      score = Math.round(score * streakBonus);
+    } else {
+      // Reset streak on poor answer
+      setStreakCount(0);
+    }
 
     // Store answer and score
     const newUserAnswers = [...userAnswers, {
@@ -116,28 +194,45 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
       correctAnswer: currentQuestion.correct_answer,
       category: currentQuestion.category,
       difficulty: currentQuestion.difficulty,
-      score: score
+      score: score,
+      streak: newStreakCount
     }];
     setUserAnswers(newUserAnswers);
 
-    const newScores = [...scores, score];
-    setScores(newScores);
+    const newScores = [...questionScores, score];
+    setQuestionScores(newScores);
 
-    // Check if this was the last question (now always 5 questions)
-    if (currentQuestionIndex >= 4) {
+    // Play sound based on score (disabled for now)
+    // if (score >= 80) {
+    //   soundEffects.success();
+    // } else if (score >= 50) {
+    //   soundEffects.goodAnswer();
+    // } else {
+    //   soundEffects.poorAnswer();
+    // }
+
+    // Check if this was the last question
+    if (currentQuestionIndex >= totalQuestions - 1) {
       // Game finished
       const totalScore = newScores.reduce((sum, s) => sum + s, 0);
       setFinalScore(totalScore);
       
-      // Save enhanced game statistics
+      // Enhanced game statistics with streak data and answer details
       const gameData = {
+        mode: mode,
         finalScore: totalScore,
-        maxScore: 5 * 120,
+        maxScore: totalQuestions * 120,
         categories: [...new Set(newUserAnswers.map(a => a.category))],
         difficulties: [...new Set(newUserAnswers.map(a => a.difficulty))],
-        questionCount: 5,
-        totalTime: 55, // 5 questions * 11 seconds
-        timeBonus: newScores.reduce((sum, score, index) => sum + (11 - index), 0),
+        questionCount: totalQuestions,
+        maxStreak: Math.max(maxStreak, newStreakCount),
+        streakBonus: newUserAnswers.reduce((sum, a) => sum + (a.streak > 1 ? a.streak - 1 : 0), 0),
+        totalTime: totalQuestions * timePerQuestion,
+        answers: newUserAnswers.map((answer, idx) => ({
+          ...answer,
+          timeLeft: timeLeft, // Time left when answered
+          questionIndex: idx
+        })),
         categoryPerformance: {}
       };
 
@@ -156,38 +251,77 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
         catPerf.bestScore = Math.max(catPerf.bestScore, answer.score);
       });
 
-      // Save using enhanced gameStats system
-      const saveResult = gameStats.saveGameResult(gameData);
-      if (saveResult.success) {
-        showNotification('Score saved with stats!', 'success');
-      } else {
-        // Fallback to simple save
-        const username = localStorage.getItem('username') || 'Unbekannt';
-        const highscores = JSON.parse(localStorage.getItem('highscores') || '[]');
-        highscores.push({ name: username, score: totalScore, date: new Date().toISOString() });
-        localStorage.setItem('highscores', JSON.stringify(highscores));
-        showNotification('Score saved!', 'success');
+      // Check achievements
+      const globalStats = overallScoreSystem.getPlayerStats();
+      const newAchievements = achievementSystem.checkAchievements(gameData, globalStats);
+      
+      // Update overall score system
+      const scoreUpdate = overallScoreSystem.updateAfterGame(gameData);
+      
+      // Save game result with enhanced data
+      const username = localStorage.getItem('username') || 'Unbekannt';
+      const highscores = JSON.parse(localStorage.getItem('highscores') || '[]');
+      const gameResult = {
+        name: username, 
+        score: totalScore, 
+        date: new Date().toISOString(),
+        mode: mode,
+        maxStreak: Math.max(maxStreak, newStreakCount),
+        categories: gameData.categories.join(', '),
+        overallScore: scoreUpdate.overallScore,
+        level: scoreUpdate.newLevel
+      };
+      highscores.push(gameResult);
+      localStorage.setItem('highscores', JSON.stringify(highscores));
+      
+      // Create notification message with achievements and level info
+      let notificationMessage = `Spiel beendet! Max Streak: ${Math.max(maxStreak, newStreakCount)}`;
+      
+      if (newAchievements.length > 0) {
+        notificationMessage += ` | 🏆 ${newAchievements.length} neue Erfolge!`;
       }
       
+      if (scoreUpdate.expGained > 0) {
+        notificationMessage += ` | +${scoreUpdate.expGained} XP`;
+      }
+      
+      if (scoreUpdate.leveledUp) {
+        notificationMessage += ` | Level UP! (${scoreUpdate.newLevel})`;
+      }
+      
+      showNotification(notificationMessage, 'success');
       setGameState('finished');
     } else {
       // Next question
+      // soundEffects.newQuestion(); // Sound for next question
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setCurrentAnswer('');
-      setTimeLeft(11);
+      setTimeLeft(timePerQuestion);
     }
   };
 
   const startNewGame = () => {
-    const allQuestions = [...extraQuestions];
-    const selectedQuestions = shuffleArray(allQuestions).slice(0, 5);
+    // Filter and shuffle questions based on config
+    let filteredQuestions = [...extraQuestions];
+    
+    if (!categories.includes('all')) {
+      filteredQuestions = filteredQuestions.filter(q => categories.includes(q.category));
+    }
+    
+    if (difficulty !== 'all') {
+      filteredQuestions = filteredQuestions.filter(q => q.difficulty === difficulty);
+    }
+    
+    const selectedQuestions = shuffleArray(filteredQuestions).slice(0, totalQuestions);
     setShuffledQuestions(selectedQuestions);
     setCurrentQuestionIndex(0);
     setUserAnswers([]);
     setCurrentAnswer('');
-    setScores([]);
+    setQuestionScores([]);
     setFinalScore(0);
-    setTimeLeft(11);
+    setTimeLeft(timePerQuestion);
+    setStreakCount(0);
+    setMaxStreak(0);
     setGameState('playing');
   };
 
@@ -227,7 +361,7 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     return (
       <div style={styles.container}>
         <div style={styles.loadingContainer}>
-          <h2>Loading questions...</h2>
+          <h2>Fragen werden geladen...</h2>
           <div style={styles.loadingSpinner}></div>
         </div>
       </div>
@@ -238,7 +372,7 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     return (
       <div style={styles.container}>
         <div style={styles.gameContainer}>
-          <h1 style={styles.title}>Game Finished!</h1>
+          <h1 style={styles.title}>Spiel beendet!</h1>
 
           {notification.message && (
             <div style={{ ...styles.notification, backgroundColor: notification.type === 'success' ? '#4CAF50' : '#f44336' }}>
@@ -247,14 +381,22 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
           )}
 
           <div style={styles.finalScoreContainer}>
-            <h2 style={styles.finalScore}>Final Score: {finalScore}/{5 * 120}</h2>
+            <h2 style={styles.finalScore}>Endergebnis: {finalScore}/{totalQuestions * 120}</h2>
             <p style={styles.scorePercentage}>
-              {((finalScore / (5 * 120)) * 100).toFixed(1)}% Accuracy
+              {((finalScore / (totalQuestions * 120)) * 100).toFixed(1)}% Genauigkeit
+            </p>
+            {maxStreak > 1 && (
+              <p style={styles.streakDisplay}>
+                🔥 Beste Serie: {maxStreak} Fragen
+              </p>
+            )}
+            <p style={styles.gameModeDisplay}>
+              🎮 Modus: {mode.charAt(0).toUpperCase() + mode.slice(1)} ({totalQuestions} Fragen)
             </p>
           </div>
 
           <div style={styles.resultsContainer}>
-            <h3>Question Results:</h3>
+            <h3>Frage-Ergebnisse:</h3>
             {userAnswers.map((answer, index) => (
               <div key={index} style={styles.resultItem}>
                 <div style={styles.resultHeader}>
@@ -284,10 +426,10 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
 
           <div style={styles.buttonContainer}>
             <button onClick={startNewGame} style={styles.button}>
-              Play Again
+              Nochmal spielen
             </button>
             <button onClick={onBackToMenu} style={{ ...styles.button, ...styles.secondaryButton }}>
-              Back to Menu
+              Zurück zum Menü
             </button>
           </div>
         </div>
@@ -295,30 +437,85 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     );
   }
 
-  // Playing state
+  // Playing state - add safety checks
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / 5) * 100;
+  const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+
+  // Show loading if questions not loaded yet
+  if (!currentQuestion || shuffledQuestions.length === 0) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.gameContainer}>
+          <div style={styles.loadingContainer}>
+            <h2>Fragen werden geladen...</h2>
+            <div style={styles.loadingSpinner}></div>
+            <p>Configuring game: {mode} mode</p>
+            <p>Categories: {categories.includes('all') ? 'All' : categories.join(', ')}</p>
+            <p>Difficulty: {difficulty === 'all' ? 'All' : difficulty}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.gameContainer}>
         <div style={styles.header}>
+          {/* Game Mode and Streak Info */}
+          <div style={styles.gameInfoBar}>
+            <div style={styles.gameModeInfo}>
+              <span style={styles.gameModeLabel}>
+                🎮 {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </span>
+              {streakCount > 1 && (
+                <span style={styles.streakInfo}>
+                  🔥 Streak: {streakCount}
+                </span>
+              )}
+            </div>
+            <div style={styles.categoryInfo}>
+              {!categories.includes('all') && (
+                <span style={styles.categoryFilter}>
+                  📂 {categories.join(', ')}
+                </span>
+              )}
+              {difficulty !== 'all' && (
+                <span style={styles.difficultyFilter}>
+                  ⚡ {difficulty}
+                </span>
+              )}
+            </div>
+          </div>
+
           <div style={styles.progressContainer}>
             <div style={styles.progressBar}>
               <div style={{ ...styles.progressFill, width: `${progress}%` }}></div>
             </div>
             <span style={styles.progressText}>
-              Question {currentQuestionIndex + 1} of 5
+              Question {currentQuestionIndex + 1} of {totalQuestions}
             </span>
           </div>
 
           <div style={styles.timerContainer}>
             <div style={{
               ...styles.timer,
-              backgroundColor: timeLeft <= 3 ? '#f44336' : timeLeft <= 6 ? '#FF9800' : '#4CAF50'
+              backgroundColor: timeLeft <= 3 ? '#f44336' : timeLeft <= 6 ? '#FF9800' : '#4CAF50',
+              transform: timeLeft <= 3 ? 'scale(1.1)' : 'scale(1)',
+              animation: timeLeft <= 3 ? 'pulse 1s infinite' : 'none',
+              boxShadow: timeLeft <= 3 ? '0 0 20px rgba(244, 67, 54, 0.6)' : 
+                         timeLeft <= 6 ? '0 0 15px rgba(255, 152, 0, 0.4)' : 
+                         '0 0 10px rgba(76, 175, 80, 0.3)'
             }}>
               {timeLeft}s
             </div>
+            <style>{`
+              @keyframes pulse {
+                0% { transform: scale(1.1); }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1.1); }
+              }
+            `}</style>
           </div>
         </div>
 
@@ -350,7 +547,7 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
               type="number"
               value={currentAnswer}
               onChange={(e) => setCurrentAnswer(e.target.value)}
-              placeholder="Enter your estimate..."
+              placeholder="Gib deine Schätzung ein..."
               style={styles.answerInput}
               autoFocus
               onKeyPress={(e) => {
@@ -365,13 +562,13 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
               style={styles.submitButton}
               disabled={timeLeft === 0}
             >
-              {currentQuestionIndex >= 4 ? 'Finish Game' : 'Next Question'}
+              {currentQuestionIndex >= 4 ? 'Spiel beenden' : 'Nächste Frage'}
             </button>
           </div>
         </div>
 
         <div style={styles.scoreContainer}>
-          <p>Current Score: {scores.reduce((sum, score) => sum + score, 0)}/{5 * 120}</p>
+          <p>Aktuelle Punkte: {questionScores.reduce((sum, score) => sum + score, 0)}/{totalQuestions * 120}</p>
         </div>
       </div>
     </div>
@@ -413,9 +610,62 @@ const styles = {
   },
   header: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    marginBottom: '30px'
+  },
+  gameInfoBar: {
+    display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px'
+    background: 'linear-gradient(135deg, #f8f9ff, #e8f2ff)',
+    padding: '12px 18px',
+    borderRadius: '12px',
+    border: '1px solid #e0e6ff'
+  },
+  gameModeInfo: {
+    display: 'flex',
+    gap: '15px',
+    alignItems: 'center'
+  },
+  gameModeLabel: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#1877f2',
+    background: 'white',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    border: '1px solid #1877f2'
+  },
+  streakInfo: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#ff6b35',
+    background: 'white',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    border: '1px solid #ff6b35'
+  },
+  categoryInfo: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center'
+  },
+  categoryFilter: {
+    fontSize: '12px',
+    color: '#666',
+    background: 'white',
+    padding: '4px 8px',
+    borderRadius: '15px',
+    border: '1px solid #ddd'
+  },
+  difficultyFilter: {
+    fontSize: '12px',
+    color: '#666',
+    background: 'white',
+    padding: '4px 8px',
+    borderRadius: '15px',
+    border: '1px solid #ddd'
   },
   progressContainer: {
     flex: 1,
@@ -536,6 +786,18 @@ const styles = {
   scorePercentage: {
     fontSize: '18px',
     color: '#666'
+  },
+  streakDisplay: {
+    fontSize: '16px',
+    color: '#ff6b35',
+    fontWeight: 'bold',
+    margin: '10px 0'
+  },
+  gameModeDisplay: {
+    fontSize: '16px',
+    color: '#1877f2',
+    fontWeight: 'bold',
+    margin: '10px 0'
   },
   resultsContainer: {
     marginBottom: '30px',

@@ -8,10 +8,12 @@ import GameConfigPage from './pages/GameConfigPage';
 import GamePage from './pages/GamePage';
 import HighscorePage from './pages/HighscorePage';
 import AdminPage from './pages/AdminPage';
+import SettingsPage from './pages/SettingsPage';
+import MultiplayerPage from './pages/MultiplayerPage';
 
 function App() {
   // App state to manage which page to show
-  const [currentPage, setCurrentPage] = useState('login'); // 'login', 'menu', 'gameConfig', 'game', 'highscores'
+  const [currentPage, setCurrentPage] = useState('login'); // 'login', 'menu', 'gameConfig', 'game', 'highscores', 'multiplayer'
   const [gameConfig, setGameConfig] = useState({});
 
   // Check for existing username on app start
@@ -32,10 +34,6 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('username');
     setCurrentPage('login');
-  };
-
-  const handleStartGame = () => {
-    setCurrentPage('game'); // Direkt ins Spiel
   };
 
   const handleStartGameWithConfig = (config) => {
@@ -59,16 +57,37 @@ function App() {
     setCurrentPage('admin');
   };
 
+  const handleShowMultiplayer = () => {
+    setCurrentPage('multiplayer');
+  };
+
   return (
     <div>
+      {/* Deployment banner for quick verification */}
+      <div style={{
+        background: '#0e7490',
+        color: 'white',
+        padding: '8px 12px',
+        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial',
+        fontSize: 14,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }}>
+        <span role="img" aria-label="rocket">🚀</span>
+        <strong>11Seconds</strong>
+        <span style={{opacity: 0.85}}>Deployed successfully:</span>
+        <span>{process.env.REACT_APP_BUILD_TIME || 'dev'}</span>
+      </div>
       {currentPage === 'login' && (
         <LoginPage onLoginSuccess={handleLoginSuccess} />
       )}
       {currentPage === 'menu' && (
         <MenuPage
-          onStartGame={handleStartGame}
+          onStartGame={handleStartGameWithConfig}
           onShowHighscores={handleShowHighscores}
           onShowSettings={handleShowSettings}
+          onShowMultiplayer={handleShowMultiplayer}
           onLogout={handleLogout}
         />
       )}
@@ -88,8 +107,12 @@ function App() {
         <AdminPage onBackToMenu={handleBackToMenu} />
       )}
       {currentPage === 'settings' && (
-        <GameConfigPage
-          onStartGame={handleStartGameWithConfig}
+        <SettingsPage
+          onBackToMenu={handleBackToMenu}
+        />
+      )}
+      {currentPage === 'multiplayer' && (
+        <MultiplayerPage
           onBackToMenu={handleBackToMenu}
         />
       )}

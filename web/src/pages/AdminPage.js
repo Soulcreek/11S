@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import extraQuestions from '../data/extraQuestions';
 
 const AdminPage = ({ onBackToMenu }) => {
     const [tab, setTab] = useState('users');
@@ -8,7 +9,6 @@ const AdminPage = ({ onBackToMenu }) => {
     const [error, setError] = useState(null);
     const [page, setPage] = useState(1);
     const [limit] = useState(50);
-    const token = localStorage.getItem('token');
 
     useEffect(() => {
         if (tab === 'users') fetchUsers();
@@ -18,9 +18,12 @@ const AdminPage = ({ onBackToMenu }) => {
     const fetchUsers = async () => {
         setLoading(true); setError(null);
         try {
-            const res = await fetch('/api/admin/users', { headers: { 'x-auth-token': token } });
-            if (!res.ok) throw new Error('Fehler beim Laden der Nutzerliste');
-            const data = await res.json(); setUsers(data);
+            // Static data - no API calls needed
+            const mockUsers = [
+                { id: 1, username: 'admin', email: 'admin@11seconds.de', role: 'admin', created_at: '2025-08-22' },
+                { id: 2, username: 'testuser', email: 'test@11seconds.de', role: 'user', created_at: '2025-08-22' }
+            ];
+            setUsers(mockUsers);
         } catch (err) { setError(err.message); }
         setLoading(false);
     };
@@ -28,68 +31,74 @@ const AdminPage = ({ onBackToMenu }) => {
     const fetchQuestions = async () => {
         setLoading(true); setError(null);
         try {
-            const res = await fetch(`/api/admin/questions?limit=${limit}&page=${page}`, { headers: { 'x-auth-token': token } });
-            if (!res.ok) throw new Error('Fehler beim Laden der Fragen');
-            const data = await res.json(); setQuestions(data);
+            // Use local questions data
+            const startIndex = (page - 1) * limit;
+            const endIndex = startIndex + limit;
+            const paginatedQuestions = extraQuestions.slice(startIndex, endIndex);
+            setQuestions(paginatedQuestions);
         } catch (err) { setError(err.message); }
         setLoading(false);
     };
 
-    // User actions
+    // User actions (static mode - no actual updates)
     const updateUserRole = async (id, role) => {
         try {
-            await fetch(`/api/admin/users/${id}/role`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify({ role }) });
-            fetchUsers();
+            // Static mode - just update local state
+            setUsers(users.map(user => user.id === id ? { ...user, role } : user));
+            alert(`Rolle für Benutzer ${id} auf ${role} gesetzt (nur lokale Änderung)`);
         } catch (err) { setError('Fehler beim Aktualisieren der Rolle'); }
     };
 
     const deleteUser = async (id) => {
-        if (!window.confirm('Benutzer wirklich löschen?')) return;
+        if (!window.confirm('Benutzer wirklich löschen? (nur lokale Änderung)')) return;
         try {
-            await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
-            fetchUsers();
+            // Static mode - just update local state
+            setUsers(users.filter(user => user.id !== id));
         } catch (err) { setError('Fehler beim Löschen des Benutzers'); }
     };
 
-    // Questions CRUD
+    // Questions CRUD (static mode - local state only)
     const createQuestion = async (q) => {
         try {
-            await fetch('/api/admin/questions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify(q) });
-            fetchQuestions();
+            // Static mode - add to local state
+            const newQuestion = { ...q, question_id: Date.now() };
+            setQuestions([...questions, newQuestion]);
+            alert('Frage erstellt (nur lokale Änderung)');
         } catch (err) { setError('Fehler beim Erstellen der Frage'); }
     };
 
     const updateQuestion = async (id, q) => {
         try {
-            await fetch(`/api/admin/questions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify(q) });
-            fetchQuestions();
+            // Static mode - update local state
+            setQuestions(questions.map(question => 
+                question.question_id === id ? { ...question, ...q } : question
+            ));
+            alert('Frage aktualisiert (nur lokale Änderung)');
         } catch (err) { setError('Fehler beim Aktualisieren der Frage'); }
     };
 
     const deleteQuestion = async (id) => {
-        if (!window.confirm('Frage wirklich löschen?')) return;
+        if (!window.confirm('Frage wirklich löschen? (nur lokale Änderung)')) return;
         try {
-            await fetch(`/api/admin/questions/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
-            fetchQuestions();
+            // Static mode - remove from local state
+            setQuestions(questions.filter(question => question.question_id !== id));
+            alert('Frage gelöscht (nur lokale Änderung)');
         } catch (err) { setError('Fehler beim Löschen der Frage'); }
     };
 
-    // Import JSON file (array of questions)
+    // Import JSON file (static mode - display only)
     const handleImportJson = async (file) => {
         setError(null);
         try {
             const text = await file.text();
             const data = JSON.parse(text);
             if (!Array.isArray(data)) throw new Error('JSON muss ein Array sein');
-            const res = await fetch('/api/admin/questions/import', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify(data) });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body.message || 'Fehler beim Import');
-            alert(body.message || 'Import erfolgreich');
-            fetchQuestions();
+            alert(`JSON-Datei gelesen: ${data.length} Fragen gefunden (nur Anzeige im Static-Modus)`);
+            console.log('Import data:', data);
         } catch (err) { setError('Import-Fehler: ' + err.message); }
     };
 
-    // Simple CSV parser (expects headers question_text,correct_answer,category,difficulty)
+    // Simple CSV parser (static mode - display only)
     const handleImportCsv = async (file) => {
         setError(null);
         try {
@@ -102,9 +111,8 @@ const AdminPage = ({ onBackToMenu }) => {
                 header.forEach((h, i) => { obj[h] = cols[i]; });
                 return { question_text: obj.question_text, correct_answer: parseFloat(obj.correct_answer), category: obj.category || 'general', difficulty: obj.difficulty || 'medium' };
             });
-            await fetch('/api/admin/questions/import', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': token }, body: JSON.stringify(items) });
-            alert('CSV importiert: ' + items.length + ' Fragen');
-            fetchQuestions();
+            alert(`CSV-Datei gelesen: ${items.length} Fragen gefunden (nur Anzeige im Static-Modus)`);
+            console.log('CSV data:', items);
         } catch (err) { setError('CSV Import Fehler: ' + err.message); }
     };
 

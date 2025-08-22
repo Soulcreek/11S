@@ -1,0 +1,100 @@
+name: Build and Deploy to Netcup via SSH
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Build frontend
+        run: |
+          npm --prefix web run build
+
+      - name: Prepare SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "SSH key written to ~/.ssh/id_rsa"
+
+      - name: Add host to known_hosts
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          if [ -n "$SSH_HOST" ]; then
+            ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts || true
+            echo "Added $SSH_HOST to known_hosts"
+          else
+            echo "SSH_HOST secret not set; skipping known_hosts"
+          fi
+
+      - name: Upload build via SCP
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
+        run: |
+          if [ -z "$SSH_USER" ] || [ -z "$SSH_HOST" ] || [ -z "$SSH_REMOTE_PATH" ]; then
+            echo "Missing SSH_USER/SSH_HOST/SSH_REMOTE_PATH secrets"; exit 1
+          fi
+          echo "Uploading web/build to $SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH"
+          # Upload frontend build files
+          scp -r -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes web/build/* "$SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
+
+      - name: Optionally upload backend files
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          UPLOAD_BACKEND: ${{ secrets.UPLOAD_BACKEND }}
+          BACKEND_REMOTE_PATH: ${{ secrets.BACKEND_REMOTE_PATH }}
+        run: |
+          # Set of backend files/dirs to transfer if enabled
+          if [ "$UPLOAD_BACKEND" = "true" ]; then
+            if [ -z "$BACKEND_REMOTE_PATH" ]; then
+              echo "BACKEND_REMOTE_PATH secret is required when UPLOAD_BACKEND=true"; exit 1
+            fi
+            echo "Uploading backend files to $SSH_USER@$SSH_HOST:$BACKEND_REMOTE_PATH"
+            FILES_TO_UPLOAD="app.js package.json package-lock.json api"
+            for f in $FILES_TO_UPLOAD; do
+              if [ -e "$f" ]; then
+                echo "  uploading $f"
+                scp -r -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes "$f" "$SSH_USER@$SSH_HOST:$BACKEND_REMOTE_PATH/"
+              else
+                echo "  skipping missing $f"
+              fi
+            done
+          else
+            echo "UPLOAD_BACKEND is not 'true' - skipping backend upload"
+          fi
+
+      - name: Optional post-deploy remote command
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_CMD: ${{ secrets.REMOTE_POST_DEPLOY_CMD }}
+        run: |
+          if [ -n "$REMOTE_CMD" ]; then
+            echo "Running remote post-deploy command on $SSH_HOST"
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "$REMOTE_CMD"
+          else
+            echo "No remote post-deploy command configured; skipping"
+          fi

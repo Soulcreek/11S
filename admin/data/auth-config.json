@@ -1,0 +1,53 @@
+{
+  "auth": {
+    "google_client_id": "",
+    "google_client_secret": "",
+    "google_redirect_uri": "http://localhost:3000/auth/google/callback",
+    "email_smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "username": "",
+      "password": "",
+      "from_email": "",
+      "from_name": "11Seconds Quiz"
+    },
+    "sms": {
+      "provider": "twilio",
+      "account_sid": "",
+      "auth_token": "",
+      "from_number": ""
+    },
+    "jwt_secret": "your-secret-key-here-change-in-production",
+    "session_timeout": 3600,
+    "verification_code_expiry": 300,
+    "max_login_attempts": 5,
+    "lockout_duration": 900
+  },
+  "security": {
+    "password_requirements": {
+      "min_length": 8,
+      "require_uppercase": true,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_special": true
+    },
+    "rate_limiting": {
+      "login_attempts_per_minute": 5,
+      "registration_attempts_per_minute": 3,
+      "api_requests_per_minute": 60
+    },
+    "encryption": {
+      "algorithm": "AES-256-GCM",
+      "key_derivation": "PBKDF2"
+    }
+  },
+  "game": {
+    "guest_session_duration": 7200,
+    "highscore_verification": true,
+    "anti_cheat": {
+      "time_validation": true,
+      "answer_pattern_detection": true,
+      "session_integrity_check": true
+    }
+  }
+}
