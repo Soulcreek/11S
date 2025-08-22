@@ -7,30 +7,30 @@ import MenuPage from './pages/MenuPage';
 import GameConfigPage from './pages/GameConfigPage';
 import GamePage from './pages/GamePage';
 import HighscorePage from './pages/HighscorePage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   // App state to manage which page to show
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'menu', 'gameConfig', 'game', 'highscores'
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [gameConfig, setGameConfig] = useState({});
 
   // Check for existing username on app start
   useEffect(() => {
     const username = localStorage.getItem('username');
     if (username) {
-      setIsAuthenticated(true);
       setCurrentPage('menu');
     }
+    const onShowAdminEvent = () => setCurrentPage('admin');
+    window.addEventListener('showAdmin', onShowAdminEvent);
+    return () => window.removeEventListener('showAdmin', onShowAdminEvent);
   }, []);
 
   const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
     setCurrentPage('menu');
   };
 
   const handleLogout = () => {
     localStorage.removeItem('username');
-    setIsAuthenticated(false);
     setCurrentPage('login');
   };
 
@@ -53,6 +53,10 @@ function App() {
 
   const handleShowSettings = () => {
     setCurrentPage('settings');
+  };
+
+  const handleShowAdmin = () => {
+    setCurrentPage('admin');
   };
 
   return (
@@ -79,6 +83,9 @@ function App() {
         <HighscorePage
           onBackToMenu={handleBackToMenu}
         />
+      )}
+      {currentPage === 'admin' && (
+        <AdminPage onBackToMenu={handleBackToMenu} />
       )}
       {currentPage === 'settings' && (
         <GameConfigPage

@@ -53,13 +53,11 @@ async function initializeDatabase() {
         return db;
 
     } catch (error) {
-        console.log('❌ MySQL connection failed:', error.message);
-        console.log('🔄 Falling back to SQLite database (development mode)...');
-
-        // Use SQLite fallback
-        usingMySQL = false;
-        db = require('./db-local');
-        return db;
+        console.error('❌ MySQL connection failed:', error.message);
+        console.error('� SQLite fallback has been disabled by configuration (no-sqlite mode).');
+        console.error('Please ensure MySQL is reachable and environment variables DB_HOST/DB_USER/DB_PASS/DB_NAME are set.');
+        // Fail fast: do not fallback to SQLite. Re-throw to prevent the app from starting in an unexpected state.
+        throw new Error('MySQL connection failed and SQLite fallback is disabled: ' + error.message);
     }
 }
 
@@ -68,13 +66,14 @@ async function setupMySQLTables(pool) {
     try {
         console.log('🔧 Setting up MySQL tables...');
 
-        // Create users table
+        // Create users table (add role for admin/user management)
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 user_id INT PRIMARY KEY AUTO_INCREMENT,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                role ENUM('user','admin') DEFAULT 'user',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
@@ -84,7 +83,7 @@ async function setupMySQLTables(pool) {
             CREATE TABLE IF NOT EXISTS questions (
                 question_id INT PRIMARY KEY AUTO_INCREMENT,
                 question_text TEXT NOT NULL,
-                correct_answer DECIMAL(15,2) NOT NULL,
+                correct_answer TEXT NOT NULL,
                 category VARCHAR(50) DEFAULT 'general',
                 difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -127,6 +126,31 @@ async function setupMySQLTables(pool) {
             await addSampleQuestions(pool);
         } else {
             console.log(`📊 Found ${questionCount[0].count} questions in MySQL database`);
+        }
+
+        // Ensure an admin user exists if environment variables provided
+        try {
+            const adminEmail = process.env.ADMIN_EMAIL;
+            const adminPass = process.env.ADMIN_PASS;
+            const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+            if (adminEmail && adminPass) {
+                const [admins] = await pool.query('SELECT user_id FROM users WHERE role = "admin" LIMIT 1');
+                if (admins.length === 0) {
+                    console.log('🔐 Creating initial admin user from environment variables');
+                    const bcrypt = require('bcryptjs');
+                    const salt = await bcrypt.genSalt(10);
+                    const passwordHash = await bcrypt.hash(adminPass, salt);
+                    await pool.query(
+                        'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+                        [adminUsername, adminEmail, passwordHash, 'admin']
+                    );
+                    console.log('✅ Admin user created');
+                } else {
+                    console.log('🔑 Admin user already exists');
+                }
+            }
+        } catch (err) {
+            console.warn('⚠️ Could not ensure admin user:', err.message);
         }
 
     } catch (error) {

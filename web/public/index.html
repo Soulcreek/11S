@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="11 Seconds Quiz Game - Teste dein Wissen in 8 spannenden Kategorien!"
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
@@ -24,7 +24,7 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>11 Seconds Quiz Game</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -39,5 +39,50 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('Service Worker registered successfully:', registration.scope);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('New service worker found, installing...');
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New update available
+                    if (confirm('Eine neue Version der App ist verfügbar. Jetzt aktualisieren?')) {
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
+            })
+            .catch(error => {
+              console.log('Service Worker registration failed:', error);
+            });
+        });
+      }
+
+      // Handle offline/online status
+      window.addEventListener('online', () => {
+        console.log('App ist wieder online');
+        // Trigger background sync if available
+        if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+          navigator.serviceWorker.ready.then(registration => {
+            return registration.sync.register('background-sync');
+          });
+        }
+      });
+
+      window.addEventListener('offline', () => {
+        console.log('App ist offline - Daten werden lokal gespeichert');
+      });
+    </script>
   </body>
 </html>

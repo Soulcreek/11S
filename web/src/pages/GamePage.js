@@ -1,55 +1,33 @@
 // File: web/src/pages/GamePage.js
 // Description: Solo game mode with 5 questions, 11-second timer per question
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import extraQuestions from '../data/extraQuestions';
+import { gameStats, userManager } from '../utils/localStorage';
 
 const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
   // Game state
-  const [gameState, setGameState] = useState('playing'); // 'playing', 'finished'
-  const [questions] = useState([
-    {
-      question_id: 1,
-      question_text: 'Wie viele Bundesländer hat Deutschland?',
-      correct_answer: '16',
-      category: 'geography',
-      difficulty: 'easy'
-    },
-    {
-      question_id: 2,
-      question_text: 'In welchem Jahr war die Mondlandung?',
-      correct_answer: '1969',
-      category: 'history',
-      difficulty: 'medium'
-    },
-    {
-      question_id: 3,
-      question_text: 'Wie viele Planeten hat unser Sonnensystem?',
-      correct_answer: '8',
-      category: 'science',
-      difficulty: 'easy'
-    },
-    {
-      question_id: 4,
-      question_text: 'Wie viele Einwohner hat Berlin (ca. 2023)?',
-      correct_answer: '3700000',
-      category: 'geography',
-      difficulty: 'hard'
-    },
-    {
-      question_id: 5,
-      question_text: 'Wie viele Minuten dauert ein Fußballspiel (regulär)?',
-      correct_answer: '90',
-      category: 'sports',
-      difficulty: 'easy'
+  // Shuffle helper
+  const shuffleArray = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-  ]);
+    return arr;
+  };
+  const [gameState, setGameState] = useState('playing'); // 'playing', 'finished'
+  const [questions] = useState(extraQuestions);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [shuffledQuestions, setShuffledQuestions] = useState(() => shuffleArray([...extraQuestions.slice(0, 5)]));
   const [userAnswers, setUserAnswers] = useState([]);
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [timeLeft, setTimeLeft] = useState(11);
   const [scores, setScores] = useState([]);
   const [finalScore, setFinalScore] = useState(0);
   const [notification, setNotification] = useState({ message: '', type: '' });
+
+  const submitRef = useRef();
+  submitRef.current = () => handleSubmitAnswer();
 
   // Timer
   useEffect(() => {
@@ -59,10 +37,17 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0 && gameState === 'playing') {
-      // Time's up, submit answer
-      handleSubmitAnswer();
+      // Time's up, submit answer via ref to avoid hook dependency on handler
+      submitRef.current();
     }
   }, [timeLeft, gameState]);
+
+  // ensure shuffled on mount and select random 5 questions
+  useEffect(() => {
+    const allQuestions = [...extraQuestions];
+    const selectedQuestions = shuffleArray(allQuestions).slice(0, 5);
+    setShuffledQuestions(selectedQuestions);
+  }, []);
 
   // Load questions when component mounts
   // Notification helper
@@ -74,27 +59,54 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
   };
 
   const calculateQuestionScore = (userAnswer, correctAnswer) => {
-    const userNum = parseFloat(userAnswer) || 0;
+    const userNum = parseFloat(userAnswer);
     const correctNum = parseFloat(correctAnswer);
 
-    if (correctNum === 0) return 0; // Avoid division by zero
+    if (Number.isNaN(correctNum) || correctNum === 0 || Number.isNaN(userNum)) {
+      // invalid input or no numeric comparison possible => minimal points
+      return 5;
+    }
 
     const difference = Math.abs(userNum - correctNum);
     const percentageDiff = (difference / Math.abs(correctNum)) * 100;
 
-    // Scoring system
-    if (percentageDiff <= 5) return 100;      // Perfect
-    if (percentageDiff <= 10) return 80;     // Very good
-    if (percentageDiff <= 20) return 60;     // Good
-    if (percentageDiff <= 50) return 40;     // OK
-    if (percentageDiff <= 100) return 20;   // Poor
-    return 10; // Minimum points
+    // Base points scale 0..100 depending on closeness
+    let base;
+    if (percentageDiff === 0) {
+      base = 110; // exact answer gives bonus (110 instead of 100)
+    } else if (percentageDiff <= 2) {
+      base = 100;
+    } else if (percentageDiff <= 5) {
+      base = 90;
+    } else if (percentageDiff <= 10) {
+      base = 75;
+    } else if (percentageDiff <= 20) {
+      base = 60;
+    } else if (percentageDiff <= 40) {
+      base = 40;
+    } else if (percentageDiff <= 100) {
+      base = 20;
+    } else {
+      base = 10;
+    }
+
+    // Additional small bonus for faster answers (more remaining time)
+    const timeBonus = Math.min(Math.max(timeLeft, 0), 11) / 11; // 0..1
+    const timeMultiplier = 1 + (timeBonus * 0.1); // up to +10%
+
+    // Difficulty is applied by caller wrapper
+    // Final score rounded
+    const multiplier = timeMultiplier * 1.0; // difficulty will be applied by caller wrapper
+    return Math.round(base * multiplier);
   };
 
   const handleSubmitAnswer = () => {
     const currentQuestion = questions[currentQuestionIndex];
     const answer = currentAnswer || '0';
-    const score = calculateQuestionScore(answer, currentQuestion.correct_answer);
+    // calculate with difficulty multiplier
+    let rawScore = calculateQuestionScore(answer, currentQuestion.correct_answer);
+    const diffMult = currentQuestion.difficulty === 'medium' ? 1.1 : currentQuestion.difficulty === 'hard' ? 1.25 : 1.0;
+    let score = Math.round(Math.min(120, rawScore * diffMult));
 
     // Store answer and score
     const newUserAnswers = [...userAnswers, {
@@ -111,17 +123,52 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     const newScores = [...scores, score];
     setScores(newScores);
 
-    // Check if this was the last question
-    if (currentQuestionIndex >= questions.length - 1) {
+    // Check if this was the last question (now always 5 questions)
+    if (currentQuestionIndex >= 4) {
       // Game finished
       const totalScore = newScores.reduce((sum, s) => sum + s, 0);
       setFinalScore(totalScore);
-      // Highscore speichern
-      const username = localStorage.getItem('username') || 'Unbekannt';
-      const highscores = JSON.parse(localStorage.getItem('highscores') || '[]');
-      highscores.push({ name: username, score: totalScore, date: new Date().toISOString() });
-      localStorage.setItem('highscores', JSON.stringify(highscores));
-      showNotification('Score saved!', 'success');
+      
+      // Save enhanced game statistics
+      const gameData = {
+        finalScore: totalScore,
+        maxScore: 5 * 120,
+        categories: [...new Set(newUserAnswers.map(a => a.category))],
+        difficulties: [...new Set(newUserAnswers.map(a => a.difficulty))],
+        questionCount: 5,
+        totalTime: 55, // 5 questions * 11 seconds
+        timeBonus: newScores.reduce((sum, score, index) => sum + (11 - index), 0),
+        categoryPerformance: {}
+      };
+
+      // Calculate category performance
+      newUserAnswers.forEach(answer => {
+        if (!gameData.categoryPerformance[answer.category]) {
+          gameData.categoryPerformance[answer.category] = {
+            questionsAnswered: 0,
+            totalScore: 0,
+            bestScore: 0
+          };
+        }
+        const catPerf = gameData.categoryPerformance[answer.category];
+        catPerf.questionsAnswered++;
+        catPerf.totalScore += answer.score;
+        catPerf.bestScore = Math.max(catPerf.bestScore, answer.score);
+      });
+
+      // Save using enhanced gameStats system
+      const saveResult = gameStats.saveGameResult(gameData);
+      if (saveResult.success) {
+        showNotification('Score saved with stats!', 'success');
+      } else {
+        // Fallback to simple save
+        const username = localStorage.getItem('username') || 'Unbekannt';
+        const highscores = JSON.parse(localStorage.getItem('highscores') || '[]');
+        highscores.push({ name: username, score: totalScore, date: new Date().toISOString() });
+        localStorage.setItem('highscores', JSON.stringify(highscores));
+        showNotification('Score saved!', 'success');
+      }
+      
       setGameState('finished');
     } else {
       // Next question
@@ -132,6 +179,9 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
   };
 
   const startNewGame = () => {
+    const allQuestions = [...extraQuestions];
+    const selectedQuestions = shuffleArray(allQuestions).slice(0, 5);
+    setShuffledQuestions(selectedQuestions);
     setCurrentQuestionIndex(0);
     setUserAnswers([]);
     setCurrentAnswer('');
@@ -149,7 +199,8 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
       nature: '🌿',
       sports: '⚽',
       technology: '💻',
-      music: '🎵'
+      music: '🎵',
+      literature: '📖'
     };
     return icons[category] || '❓';
   };
@@ -196,9 +247,9 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
           )}
 
           <div style={styles.finalScoreContainer}>
-            <h2 style={styles.finalScore}>Final Score: {finalScore}/500</h2>
+            <h2 style={styles.finalScore}>Final Score: {finalScore}/{5 * 120}</h2>
             <p style={styles.scorePercentage}>
-              {((finalScore / 500) * 100).toFixed(1)}% Accuracy
+              {((finalScore / (5 * 120)) * 100).toFixed(1)}% Accuracy
             </p>
           </div>
 
@@ -245,8 +296,8 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
   }
 
   // Playing state
-  const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const currentQuestion = shuffledQuestions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / 5) * 100;
 
   return (
     <div style={styles.container}>
@@ -257,7 +308,7 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
               <div style={{ ...styles.progressFill, width: `${progress}%` }}></div>
             </div>
             <span style={styles.progressText}>
-              Question {currentQuestionIndex + 1} of {questions.length}
+              Question {currentQuestionIndex + 1} of 5
             </span>
           </div>
 
@@ -314,13 +365,13 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
               style={styles.submitButton}
               disabled={timeLeft === 0}
             >
-              {currentQuestionIndex >= questions.length - 1 ? 'Finish Game' : 'Next Question'}
+              {currentQuestionIndex >= 4 ? 'Finish Game' : 'Next Question'}
             </button>
           </div>
         </div>
 
         <div style={styles.scoreContainer}>
-          <p>Current Score: {scores.reduce((sum, score) => sum + score, 0)}/500</p>
+          <p>Current Score: {scores.reduce((sum, score) => sum + score, 0)}/{5 * 120}</p>
         </div>
       </div>
     </div>

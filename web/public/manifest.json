@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "11Seconds",
+  "name": "11Seconds Quiz Game",
+  "description": "Test your knowledge in lightning-fast 11-second rounds!",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,11 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#1877f2",
+  "background_color": "#f0f2f5",
+  "categories": ["games", "education", "entertainment"],
+  "lang": "de",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "prefer_related_applications": false
 }

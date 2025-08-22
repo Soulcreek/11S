@@ -5,8 +5,10 @@ import React, { useState, useEffect } from 'react';
 
 const HighscorePage = ({ onBackToMenu }) => {
   const [highscores, setHighscores] = useState([]);
+  const [globalHighscores, setGlobalHighscores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState('');
+  const [activeTab, setActiveTab] = useState('local'); // 'local' | 'global'
 
   useEffect(() => {
     loadHighscores();
@@ -17,8 +19,21 @@ const HighscorePage = ({ onBackToMenu }) => {
     try {
       const scores = JSON.parse(localStorage.getItem('highscores') || '[]');
       // Sortiere nach Score absteigend
-      scores.sort((a, b) => b.score - a.score);
+      scores.sort((a, b) => b.score - a.score || new Date(b.date) - new Date(a.date));
       setHighscores(scores);
+
+      // Berechne globale Highscores: für jeden Nutzer nur der höchste Score
+      const byUser = {};
+      for (const s of scores) {
+        const name = (s.name || 'Gast').trim();
+        const score = Number(s.score) || 0;
+        const date = s.date || new Date().toISOString();
+        if (!byUser[name] || score > byUser[name].score || (score === byUser[name].score && new Date(date) > new Date(byUser[name].date))) {
+          byUser[name] = { name, score, date };
+        }
+      }
+      const global = Object.values(byUser).sort((a, b) => b.score - a.score || new Date(b.date) - new Date(a.date));
+      setGlobalHighscores(global);
       setLoading(false);
     } catch (e) {
       setNotification('Fehler beim Laden der Highscores.');
@@ -66,18 +81,54 @@ const HighscorePage = ({ onBackToMenu }) => {
         {notification && (
           <div style={{ ...styles.notification, backgroundColor: '#f44336' }}>{notification}</div>
         )}
-        <div style={styles.highscoreList}>
-          {highscores.length === 0 ? (
-            <p>Keine Highscores vorhanden. Spiele ein Quiz!</p>
-          ) : (
-            highscores.slice(0, 10).map((entry, idx) => (
-              <div key={idx} style={styles.highscoreItem}>
-                <span style={styles.rank}>{idx + 1}.</span>
-                <span style={styles.username}>{entry.name}</span>
-                <span style={{ ...styles.score, color: getScoreColor(entry.score) }}>{entry.score}</span>
-                <span style={styles.date}>{formatDate(entry.date)}</span>
-              </div>
-            ))
+        <div style={styles.tabContainer}>
+          <button
+            style={{ ...styles.tab, ...(activeTab === 'local' ? styles.activeTab : styles.inactiveTab) }}
+            onClick={() => setActiveTab('local')}
+          >
+            Lokale Highscores
+          </button>
+          <button
+            style={{ ...styles.tab, ...(activeTab === 'global' ? styles.activeTab : styles.inactiveTab) }}
+            onClick={() => setActiveTab('global')}
+          >
+            Globale Highscores
+          </button>
+        </div>
+
+        <div style={styles.content}>
+          {activeTab === 'local' && (
+            <div style={styles.tabContent}>
+              {highscores.length === 0 ? (
+                <p>Keine Highscores vorhanden. Spiele ein Quiz!</p>
+              ) : (
+                highscores.slice(0, 20).map((entry, idx) => (
+                  <div key={idx} style={styles.highscoreItem}>
+                    <span style={styles.rank}>{idx + 1}.</span>
+                    <span style={styles.username}>{entry.name}</span>
+                    <span style={{ ...styles.score, color: getScoreColor(entry.score) }}>{entry.score}</span>
+                    <span style={styles.date}>{formatDate(entry.date)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'global' && (
+            <div style={styles.tabContent}>
+              {globalHighscores.length === 0 ? (
+                <p>Keine globalen Highscores vorhanden.</p>
+              ) : (
+                globalHighscores.slice(0, 50).map((entry, idx) => (
+                  <div key={entry.name} style={styles.highscoreItem}>
+                    <span style={styles.rank}>{idx + 1}.</span>
+                    <span style={styles.username}>{entry.name}</span>
+                    <span style={{ ...styles.score, color: getScoreColor(entry.score) }}>{entry.score}</span>
+                    <span style={styles.date}>{formatDate(entry.date)}</span>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
         <div style={styles.footer}>

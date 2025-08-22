@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
 
     // Check if user exists
     const [users] = await db.query(
-      'SELECT user_id, username, email, password_hash FROM users WHERE email = ?',
+      'SELECT user_id, username, email, password_hash, role FROM users WHERE email = ?',
       [email]
     );
 
@@ -87,7 +87,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.user_id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user'
       }
     };
 
@@ -99,7 +100,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.user_id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role || 'user'
       }
     });
 

@@ -1,5 +1,5 @@
-# Quick FTP Deploy Script with Logging
-$logFile = "ftp-deploy.log"
+# Complete FTP Deploy Script - Lädt alle React Build-Dateien hoch
+$logFile = "complete-ftp-deploy.log"
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 function Write-Log {
@@ -9,11 +9,11 @@ function Write-Log {
     Add-Content -Path $logFile -Value $logMessage
 }
 
-Write-Log "🚀 Starting FTP Deployment to Netcup" "Green"
+Write-Log "🚀 Starting Complete FTP Deployment to Netcup" "Green"
 
-# FTP Settings from new credentials
+# FTP Settings
 $ftpHost = "ftp.11seconds.de"
-$ftpUser = "k302164_11s"
+$ftpUser = "hk302164_11s"
 $ftpPass = "hallo.411S"
 
 Write-Log "📡 Connecting to: $ftpHost as $ftpUser" "Yellow"
@@ -89,15 +89,39 @@ function Create-Directory {
     }
 }
 
-# Deploy files
+# Upload directory recursively
+function Upload-Directory {
+    param([string]$LocalDir, [string]$RemoteDir)
+    
+    if (-not (Test-Path $LocalDir)) {
+        Write-Log "⚠️ Directory not found: $LocalDir" "Yellow"
+        return
+    }
+    
+    # Create remote directory
+    Create-Directory $RemoteDir
+    
+    # Upload all files in directory
+    $files = Get-ChildItem -Path $LocalDir -File
+    foreach ($file in $files) {
+        $remotePath = "$RemoteDir/$($file.Name)"
+        Upload-File -LocalPath $file.FullName -RemotePath $remotePath
+    }
+    
+    # Recursively upload subdirectories
+    $subdirs = Get-ChildItem -Path $LocalDir -Directory
+    foreach ($subdir in $subdirs) {
+        $remoteSubDir = "$RemoteDir/$($subdir.Name)"
+        Upload-Directory -LocalDir $subdir.FullName -RemoteDir $remoteSubDir
+    }
+}
+
 Write-Log "📦 Creating remote directories..." "Yellow"
 Create-Directory "api"
 Create-Directory "api/middleware" 
 Create-Directory "api/routes"
 Create-Directory "httpdocs"
 Create-Directory "httpdocs/static"
-Create-Directory "httpdocs/static/css"
-Create-Directory "httpdocs/static/js"
 
 Write-Log "📤 Uploading backend files..." "Yellow"
 
@@ -125,11 +149,11 @@ foreach ($file in $backendFiles) {
 
 Write-Log "📤 Uploading frontend files..." "Yellow"
 
-# Upload all frontend files from httpdocs
-$httpdocsPath = "$deployPath\httpdocs"
-if (Test-Path $httpdocsPath) {
+# Upload all frontend files from web/build to httpdocs
+$buildPath = ".\web\build"
+if (Test-Path $buildPath) {
     # Upload root files
-    $rootFiles = Get-ChildItem -Path $httpdocsPath -File
+    $rootFiles = Get-ChildItem -Path $buildPath -File
     foreach ($file in $rootFiles) {
         $remotePath = "httpdocs/$($file.Name)"
         if (Upload-File -LocalPath $file.FullName -RemotePath $remotePath) {
@@ -139,35 +163,16 @@ if (Test-Path $httpdocsPath) {
         }
     }
     
-    # Upload static/css files
-    $cssPath = "$httpdocsPath\static\css"
-    if (Test-Path $cssPath) {
-        $cssFiles = Get-ChildItem -Path $cssPath -File
-        foreach ($file in $cssFiles) {
-            $remotePath = "httpdocs/static/css/$($file.Name)"
-            if (Upload-File -LocalPath $file.FullName -RemotePath $remotePath) {
-                $uploadStats.Success++
-            } else {
-                $uploadStats.Failed++
-            }
-        }
-    }
-    
-    # Upload static/js files
-    $jsPath = "$httpdocsPath\static\js"
-    if (Test-Path $jsPath) {
-        $jsFiles = Get-ChildItem -Path $jsPath -File
-        foreach ($file in $jsFiles) {
-            $remotePath = "httpdocs/static/js/$($file.Name)"
-            if (Upload-File -LocalPath $file.FullName -RemotePath $remotePath) {
-                $uploadStats.Success++
-            } else {
-                $uploadStats.Failed++
-            }
-        }
+    # Upload static directory recursively
+    $staticPath = "$buildPath\static"
+    if (Test-Path $staticPath) {
+        Upload-Directory -LocalDir $staticPath -RemoteDir "httpdocs/static"
+        $staticFiles = Get-ChildItem -Path $staticPath -Recurse -File
+        $uploadStats.Success += $staticFiles.Count
     }
 } else {
-    Write-Log "⚠️ httpdocs directory not found: $httpdocsPath" "Yellow"
+    Write-Log "❌ Build directory not found: $buildPath" "Red"
+    Write-Log "Please run 'npm run build' in the web directory first!" "Yellow"
 }
 
 Write-Log "📊 Deployment Complete!" "Green"

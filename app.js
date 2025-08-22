@@ -42,10 +42,12 @@ async function initializeDatabase() {
 // Import routes
 const authRoutes = require('./api/routes/auth');
 const gameRoutes = require('./api/routes/game');
+const adminRoutes = require('./api/routes/admin');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Catch-all handler: send back React's index.html file for client-side routing
 app.get('*', (req, res) => {

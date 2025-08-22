@@ -2,9 +2,7 @@
 // Description: Game configuration page to select category and difficulty
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const API_URL = 'http://localhost:3011/api';
+// Running in static/offline mode: load local defaults instead of calling an API
 
 const GameConfigPage = ({ onStartGame, onBackToMenu }) => {
   const [categories, setCategories] = useState({});
@@ -15,7 +13,35 @@ const GameConfigPage = ({ onStartGame, onBackToMenu }) => {
   const [notification, setNotification] = useState({ message: '', type: '' });
 
   useEffect(() => {
-    loadGameOptions();
+    // Load options on mount using local defaults (no backend)
+    (async () => {
+      try {
+        setLoading(true);
+        const localCategories = {
+          geography: { total: 8, difficulties: { easy: 3, medium: 3, hard: 2 } },
+          history: { total: 7, difficulties: { easy: 2, medium: 3, hard: 2 } },
+          science: { total: 9, difficulties: { easy: 4, medium: 3, hard: 2 } },
+          nature: { total: 6, difficulties: { easy: 2, medium: 2, hard: 2 } },
+          sports: { total: 5, difficulties: { easy: 2, medium: 2, hard: 1 } },
+          technology: { total: 4, difficulties: { easy: 2, medium: 1, hard: 1 } },
+          music: { total: 3, difficulties: { easy: 2, medium: 1, hard: 0 } }
+        };
+
+        const localDifficulties = [
+          { difficulty: 'easy', total_questions: 17 },
+          { difficulty: 'medium', total_questions: 14 },
+          { difficulty: 'hard', total_questions: 10 }
+        ];
+
+        setCategories(localCategories);
+        setDifficulties(localDifficulties);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading game options:', error);
+        showNotification('Failed to load game options.', 'error');
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const showNotification = (message, type) => {
@@ -27,26 +53,27 @@ const GameConfigPage = ({ onStartGame, onBackToMenu }) => {
 
   const loadGameOptions = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        showNotification('No authentication token found.', 'error');
-        return;
-      }
-
+      // If there's no backend available (Netcup shared hosting), use local defaults
       setLoading(true);
 
-      // Load categories and difficulties in parallel
-      const [categoriesResponse, difficultiesResponse] = await Promise.all([
-        axios.get(`${API_URL}/game/categories`, {
-          headers: { 'x-auth-token': token }
-        }),
-        axios.get(`${API_URL}/game/difficulties`, {
-          headers: { 'x-auth-token': token }
-        })
-      ]);
+      const localCategories = {
+        geography: { total: 8, difficulties: { easy: 3, medium: 3, hard: 2 } },
+        history: { total: 7, difficulties: { easy: 2, medium: 3, hard: 2 } },
+        science: { total: 9, difficulties: { easy: 4, medium: 3, hard: 2 } },
+        nature: { total: 6, difficulties: { easy: 2, medium: 2, hard: 2 } },
+        sports: { total: 5, difficulties: { easy: 2, medium: 2, hard: 1 } },
+        technology: { total: 4, difficulties: { easy: 2, medium: 1, hard: 1 } },
+        music: { total: 3, difficulties: { easy: 2, medium: 1, hard: 0 } }
+      };
 
-      setCategories(categoriesResponse.data);
-      setDifficulties(difficultiesResponse.data);
+      const localDifficulties = [
+        { difficulty: 'easy', total_questions: 17 },
+        { difficulty: 'medium', total_questions: 14 },
+        { difficulty: 'hard', total_questions: 10 }
+      ];
+
+      setCategories(localCategories);
+      setDifficulties(localDifficulties);
       setLoading(false);
 
     } catch (error) {

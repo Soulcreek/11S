@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) => {
   const [userInfo, setUserInfo] = useState(null);
   const [deployStatus, setDeployStatus] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Get username from localStorage
@@ -13,6 +14,8 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
     if (username) {
       setUserInfo({ username });
     }
+    const role = localStorage.getItem('userRole');
+    setIsAdmin(role === 'admin');
     fetchDeployStatus();
   }, []);
 
@@ -87,6 +90,19 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onLogout }) =
               </p>
             </div>
           </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('showAdmin'))}
+              style={{ ...styles.menuButton, backgroundColor: '#333', color: '#fff' }}
+            >
+              <div style={styles.buttonIcon}>🛠️</div>
+              <div style={styles.buttonContent}>
+                <h3 style={styles.buttonTitle}>Admin</h3>
+                <p style={styles.buttonDescription}>Raw data & user management</p>
+              </div>
+            </button>
+          )}
 
           {/* Future game modes */}
           <button

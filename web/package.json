@@ -16,7 +16,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "build:production": "GENERATE_SOURCEMAP=false react-scripts build",
+    "copy-to-deploy": "npm run build:production && xcopy build\\* ..\\deploy-netcup-auto\\httpdocs\\ /s /y /e",
+    "deploy:local": "npm run copy-to-deploy",
+    "deploy:netcup": "npm run copy-to-deploy && cd .. && powershell -ExecutionPolicy Bypass -File quick-ftp-deploy.ps1"
   },
   "eslintConfig": {
     "extends": [

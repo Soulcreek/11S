@@ -1,40 +1,22 @@
-# Quick FTP Deploy Script with Logging
-$logFile = "ftp-deploy.log"
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+# Simple Complete FTP Deploy Script
+$logFile = "deploy.log"
 
 function Write-Log {
-    param([string]$Message, [string]$Color = "White")
+    param([string]$Message)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] $Message"
-    Write-Host $logMessage -ForegroundColor $Color
+    Write-Host $logMessage
     Add-Content -Path $logFile -Value $logMessage
 }
 
-Write-Log "🚀 Starting FTP Deployment to Netcup" "Green"
+Write-Log "Starting Complete FTP Deployment to Netcup"
 
-# FTP Settings from new credentials
+# FTP Settings
 $ftpHost = "ftp.11seconds.de"
-$ftpUser = "k302164_11s"
+$ftpUser = "hk302164_11s"
 $ftpPass = "hallo.411S"
 
-Write-Log "📡 Connecting to: $ftpHost as $ftpUser" "Yellow"
-
-# Test connection first
-try {
-    $testUri = "ftp://$ftpHost/"
-    $testRequest = [System.Net.FtpWebRequest]::Create($testUri)
-    $testRequest.Method = [System.Net.WebRequestMethods+Ftp]::ListDirectory
-    $testRequest.Credentials = New-Object System.Net.NetworkCredential($ftpUser, $ftpPass)
-    $testRequest.Timeout = 15000
-    
-    $testResponse = $testRequest.GetResponse()
-    $testResponse.Close()
-    
-    Write-Log "✅ FTP Connection successful!" "Green"
-}
-catch {
-    Write-Log "❌ FTP Connection failed: $($_.Exception.Message)" "Red"
-    exit 1
-}
+Write-Log "Connecting to: $ftpHost as $ftpUser"
 
 # Upload function
 function Upload-File {
@@ -42,7 +24,7 @@ function Upload-File {
     
     try {
         if (-not (Test-Path $LocalPath)) {
-            Write-Log "⚠️ File not found: $LocalPath" "Yellow"
+            Write-Log "File not found: $LocalPath"
             return $false
         }
         
@@ -62,11 +44,11 @@ function Upload-File {
         $uploadResponse = $uploadRequest.GetResponse()
         $uploadResponse.Close()
         
-        Write-Log "✅ Uploaded: $RemotePath" "Green"
+        Write-Log "Uploaded: $RemotePath"
         return $true
     }
     catch {
-        Write-Log "❌ Upload failed for $RemotePath : $($_.Exception.Message)" "Red"
+        Write-Log "Upload failed for $RemotePath : $($_.Exception.Message)"
         return $false
     }
 }
@@ -82,15 +64,14 @@ function Create-Directory {
         
         $dirResponse = $dirRequest.GetResponse()
         $dirResponse.Close()
-        Write-Log "📁 Created directory: $RemotePath" "Cyan"
+        Write-Log "Created directory: $RemotePath"
     }
     catch {
         # Directory might already exist, ignore error
     }
 }
 
-# Deploy files
-Write-Log "📦 Creating remote directories..." "Yellow"
+Write-Log "Creating remote directories..."
 Create-Directory "api"
 Create-Directory "api/middleware" 
 Create-Directory "api/routes"
@@ -99,7 +80,7 @@ Create-Directory "httpdocs/static"
 Create-Directory "httpdocs/static/css"
 Create-Directory "httpdocs/static/js"
 
-Write-Log "📤 Uploading backend files..." "Yellow"
+Write-Log "Uploading backend files..."
 
 $deployPath = ".\deploy-netcup-auto"
 $uploadStats = @{ Success = 0; Failed = 0 }
@@ -123,9 +104,9 @@ foreach ($file in $backendFiles) {
     }
 }
 
-Write-Log "📤 Uploading frontend files..." "Yellow"
+Write-Log "Uploading frontend files..."
 
-# Upload all frontend files from httpdocs
+# Upload frontend files from deploy-netcup-auto/httpdocs
 $httpdocsPath = "$deployPath\httpdocs"
 if (Test-Path $httpdocsPath) {
     # Upload root files
@@ -167,18 +148,18 @@ if (Test-Path $httpdocsPath) {
         }
     }
 } else {
-    Write-Log "⚠️ httpdocs directory not found: $httpdocsPath" "Yellow"
+    Write-Log "httpdocs directory not found: $httpdocsPath"
 }
 
-Write-Log "📊 Deployment Complete!" "Green"
-Write-Log "✅ Successful uploads: $($uploadStats.Success)" "Green"
-Write-Log "❌ Failed uploads: $($uploadStats.Failed)" "Red"
+Write-Log "Deployment Complete!"
+Write-Log "Successful uploads: $($uploadStats.Success)"
+Write-Log "Failed uploads: $($uploadStats.Failed)"
 
 if ($uploadStats.Failed -eq 0) {
-    Write-Log "🎉 All files uploaded successfully!" "Green"
-    Write-Log "🌐 App should be available at: https://11seconds.de:3011" "Cyan"
+    Write-Log "All files uploaded successfully!"
+    Write-Log "App should be available at: https://11seconds.de:3011"
 } else {
-    Write-Log "⚠️ Some files failed to upload. Check the log above." "Yellow"
+    Write-Log "Some files failed to upload. Check the log above."
 }
 
-Write-Log "Full log saved to: $logFile" "White"
+Write-Log "Full log saved to: $logFile"
