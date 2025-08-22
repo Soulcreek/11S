@@ -162,6 +162,55 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in']) {
             </button>
         </form>
         
+        <div style="margin: 20px 0; color: #ccc; text-align: center; position: relative;">
+            <hr style="border: none; border-top: 1px solid #eee;">
+            <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 15px; color: #999;">oder</span>
+        </div>
+        
+        <!-- Google Login Button -->
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin" 
+             data-type="standard"
+             data-size="large"
+             data-theme="filled_blue"
+             data-text="signin_with"
+             data-shape="rectangular"
+             data-logo_alignment="left"
+             data-width="320">
+        </div>
+        
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script>
+        function handleCredentialResponse(response) {
+            // Send the credential to the server for verification
+            fetch('google-auth.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential: response.credential
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = 'dashboard.php';
+                } else {
+                    alert('Google Anmeldung fehlgeschlagen: ' + (data.error || 'Unbekannter Fehler'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Fehler bei der Google Anmeldung');
+            });
+        }
+        </script>
+        
         <?php if (isset($login_error)): ?>
             <div class="error">
                 <i class="fas fa-exclamation-triangle"></i> <?php echo $login_error; ?>

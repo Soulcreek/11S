@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11 Seconds Quiz Game - NEW VERSION</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .title {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .login-form {
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .input:focus {
+            border-color: #3498db;
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .submit-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .divider {
+            margin: 25px 0;
+            position: relative;
+            text-align: center;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ecf0f1;
+        }
+        
+        .divider-text {
+            background: white;
+            padding: 0 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .google-signin-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .guest-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            color: #666;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .guest-button:hover {
+            background: #e9ecef;
+        }
+        
+        .notification {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .notification.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .notification.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .version-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">11seconds</h1>
+        <p class="subtitle">Quiz Game - Neue Version mit Google Login</p>
+        
+        <div id="notification" class="notification" style="display: none;"></div>
+        
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <label class="label">Benutzername</label>
+                <input type="text" class="input" id="username" placeholder="Dein Benutzername" required>
+            </div>
+            <div class="input-group">
+                <label class="label">Passwort</label>
+                <input type="password" class="input" id="password" placeholder="Dein Passwort" required>
+            </div>
+            <button type="submit" class="submit-button">Anmelden</button>
+        </form>
+        
+        <div class="divider">
+            <span class="divider-text">oder</span>
+        </div>
+        
+        <div class="google-signin-container">
+            <div id="google-signin-button"></div>
+        </div>
+        
+        <div class="divider">
+            <span class="divider-text">oder</span>
+        </div>
+        
+        <button class="guest-button" onclick="handleGuestLogin()">Als Gast spielen</button>
+    </div>
+    
+    <div class="version-info">
+        Version 2.0 - React App with Google Auth
+    </div>
+
+    <script>
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Handle traditional login
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (username && password) {
+                localStorage.setItem('username', username);
+                showNotification('Anmeldung erfolgreich! Weiterleitung...', 'success');
+                setTimeout(() => {
+                    // Redirect to game
+                    window.location.href = '/game.html';
+                }, 1500);
+            }
+        }
+
+        // Handle guest login
+        function handleGuestLogin() {
+            localStorage.setItem('username', 'Gast');
+            showNotification('Als Gast angemeldet! Weiterleitung...', 'success');
+            setTimeout(() => {
+                window.location.href = '/game.html';
+            }, 1500);
+        }
+
+        // Handle Google login
+        function handleGoogleLogin(credentialResponse) {
+            console.log('Google Login Response:', credentialResponse);
+            
+            fetch('/api/auth/google.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    credential: credentialResponse.credential 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    localStorage.setItem('username', data.user.username || data.user.email.split('@')[0]);
+                    localStorage.setItem('userEmail', data.user.email);
+                    localStorage.setItem('isGoogleUser', 'true');
+                    showNotification('Google Anmeldung erfolgreich!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/game.html';
+                    }, 1500);
+                } else {
+                    showNotification('Google Anmeldung fehlgeschlagen: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Google login error:', error);
+                showNotification('Google Anmeldung fehlgeschlagen. Versuche es erneut.', 'error');
+            });
+        }
+
+        // Initialize Google Sign-In
+        window.onload = function() {
+            if (window.google && window.google.accounts) {
+                google.accounts.id.initialize({
+                    client_id: '730387473983-7a1d8bpeb8t2e5b9rvptnumdaph5hqag.apps.googleusercontent.com',
+                    callback: handleGoogleLogin
+                });
+
+                google.accounts.id.renderButton(
+                    document.getElementById('google-signin-button'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'signin_with',
+                        locale: 'de'
+                    }
+                );
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11 Seconds Quiz Game</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .title {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .input:focus {
+            border-color: #4CAF50;
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+        
+        .submit-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .divider {
+            margin: 25px 0;
+            position: relative;
+            text-align: center;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ecf0f1;
+        }
+        
+        .divider-text {
+            background: white;
+            padding: 0 20px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .google-signin-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .guest-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            color: #666;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .guest-button:hover {
+            background: #e9ecef;
+        }
+        
+        .notification {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .notification.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .notification.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .toggle-button {
+            background: none;
+            border: none;
+            color: #4CAF50;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">11seconds</h1>
+        <p class="subtitle">Das schnelle Quiz-Spiel</p>
+        
+        <div id="notification" class="notification"></div>
+        
+        <form id="loginForm">
+            <div class="input-group">
+                <label class="label">Benutzername</label>
+                <input type="text" class="input" id="username" placeholder="Dein Benutzername" required>
+            </div>
+            <div class="input-group" id="passwordGroup">
+                <label class="label">Passwort</label>
+                <input type="password" class="input" id="password" placeholder="Dein Passwort">
+            </div>
+            <div class="input-group" id="emailGroup" style="display: none;">
+                <label class="label">E-Mail (optional)</label>
+                <input type="email" class="input" id="email" placeholder="deine@email.de">
+            </div>
+            <button type="submit" class="submit-button" id="submitBtn">Anmelden</button>
+        </form>
+        
+        <button class="toggle-button" id="toggleBtn" onclick="toggleMode()">
+            Neu hier? Registrieren
+        </button>
+        
+        <div class="divider">
+            <span class="divider-text">oder</span>
+        </div>
+        
+        <div class="google-signin-container">
+            <div id="google-signin-button"></div>
+        </div>
+        
+        <div class="divider">
+            <span class="divider-text">oder</span>
+        </div>
+        
+        <button class="guest-button" onclick="loginAsGuest()">Als Gast spielen</button>
+    </div>
+
+    <script>
+        let isRegisterMode = false;
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Toggle between login and register
+        function toggleMode() {
+            isRegisterMode = !isRegisterMode;
+            const emailGroup = document.getElementById('emailGroup');
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const passwordInput = document.getElementById('password');
+            
+            if (isRegisterMode) {
+                emailGroup.style.display = 'block';
+                submitBtn.textContent = 'Registrieren';
+                toggleBtn.textContent = 'Bereits registriert? Anmelden';
+                passwordInput.required = true;
+            } else {
+                emailGroup.style.display = 'none';
+                submitBtn.textContent = 'Anmelden';
+                toggleBtn.textContent = 'Neu hier? Registrieren';
+                passwordInput.required = false;
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const email = document.getElementById('email').value.trim();
+            
+            if (!username) {
+                showNotification('Bitte Benutzername eingeben', 'error');
+                return;
+            }
+            
+            if (isRegisterMode) {
+                // Registration
+                if (!password || password.length < 4) {
+                    showNotification('Passwort muss mindestens 4 Zeichen haben', 'error');
+                    return;
+                }
+                
+                // Save user data
+                const users = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+                if (users[username]) {
+                    showNotification('Benutzername bereits vergeben', 'error');
+                    return;
+                }
+                
+                users[username] = {
+                    username: username,
+                    email: email,
+                    password: hashPassword(password),
+                    createdAt: new Date().toISOString(),
+                    gamesPlayed: 0,
+                    bestScore: 0
+                };
+                
+                localStorage.setItem('registeredUsers', JSON.stringify(users));
+                localStorage.setItem('username', username);
+                localStorage.setItem('currentUser', JSON.stringify(users[username]));
+                
+                showNotification('Account erstellt! Weiterleitung zum Spiel...', 'success');
+                setTimeout(() => {
+                    startGame();
+                }, 1500);
+                
+            } else {
+                // Login
+                const users = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+                
+                if (password) {
+                    // Password login
+                    const user = users[username];
+                    if (!user) {
+                        showNotification('Benutzer nicht gefunden. Registriere dich zuerst.', 'error');
+                        return;
+                    }
+                    
+                    if (user.password !== hashPassword(password)) {
+                        showNotification('Falsches Passwort', 'error');
+                        return;
+                    }
+                    
+                    localStorage.setItem('username', username);
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+                } else {
+                    // Simple username login (for compatibility)
+                    localStorage.setItem('username', username);
+                }
+                
+                showNotification('Anmeldung erfolgreich! Weiterleitung zum Spiel...', 'success');
+                setTimeout(() => {
+                    startGame();
+                }, 1500);
+            }
+        });
+        
+        // Simple password hashing
+        function hashPassword(password) {
+            let hash = 0;
+            for (let i = 0; i < password.length; i++) {
+                const char = password.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+        
+        // Guest login
+        function loginAsGuest() {
+            localStorage.setItem('username', 'Gast');
+            localStorage.setItem('currentUser', JSON.stringify({
+                username: 'Gast',
+                isGuest: true,
+                createdAt: new Date().toISOString(),
+                gamesPlayed: 0,
+                bestScore: 0
+            }));
+            
+            showNotification('Als Gast angemeldet! Weiterleitung zum Spiel...', 'success');
+            setTimeout(() => {
+                startGame();
+            }, 1500);
+        }
+        
+        // Google login callback
+        function handleGoogleLogin(credentialResponse) {
+            showNotification('Google-Anmeldung wird verarbeitet...', 'info');
+            
+            // For now, just extract name from JWT and login
+            try {
+                const payload = JSON.parse(atob(credentialResponse.credential.split('.')[1]));
+                const username = payload.name || payload.email.split('@')[0];
+                
+                localStorage.setItem('username', username);
+                localStorage.setItem('currentUser', JSON.stringify({
+                    username: username,
+                    email: payload.email,
+                    isGoogle: true,
+                    picture: payload.picture,
+                    createdAt: new Date().toISOString(),
+                    gamesPlayed: 0,
+                    bestScore: 0
+                }));
+                
+                showNotification('Google-Anmeldung erfolgreich!', 'success');
+                setTimeout(() => {
+                    startGame();
+                }, 1500);
+                
+            } catch (error) {
+                showNotification('Google-Anmeldung fehlgeschlagen', 'error');
+            }
+        }
+        
+        // Start the game
+        function startGame() {
+            // For now, redirect to a simple game page or show game interface
+            document.body.innerHTML = `
+                <div style="text-align: center; padding: 50px; font-family: 'Segoe UI', sans-serif;">
+                    <h1 style="color: #4CAF50; font-size: 3em; margin-bottom: 20px;">11seconds</h1>
+                    <h2 style="color: #2c3e50; margin-bottom: 30px;">Willkommen, ${localStorage.getItem('username')}!</h2>
+                    <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto;">
+                        <h3 style="color: #2c3e50; margin-bottom: 20px;">Spiel wird geladen...</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 20px;">Die React-App wird bald integriert. Aktuell läuft die Login-Funktionalität!</p>
+                        <button onclick="logout()" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">Abmelden</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Logout function
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+        
+        // Initialize Google Sign-In
+        window.onload = function() {
+            // Check if already logged in
+            if (localStorage.getItem('username')) {
+                startGame();
+                return;
+            }
+            
+            if (window.google && window.google.accounts) {
+                google.accounts.id.initialize({
+                    client_id: '730387473983-7a1d8bpeb8t2e5b9rvptnumdaph5hqag.apps.googleusercontent.com',
+                    callback: handleGoogleLogin
+                });
+
+                google.accounts.id.renderButton(
+                    document.getElementById('google-signin-button'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'signin_with',
+                        locale: 'de'
+                    }
+                );
+            }
+        };
+    </script>
+</body>
+</html>

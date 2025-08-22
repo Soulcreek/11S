@@ -40,29 +40,92 @@ if (isset($_POST['sync_to_mysql'])) {
     }
 }
 
-// Get statistics from hybrid manager
+// Handle disable fallback request (admin-initiated)
+if (isset($_POST['disable_fallback']) && $_POST['disable_fallback'] == '1') {
+    $disableResult = $dataManager->disableFallback();
+    if ($disableResult['success']) {
+        echo '<div class="alert alert-success">🔧 ' . htmlspecialchars($disableResult['message']) . '</div>';
+    } else {
+        echo '<div class="alert alert-danger">❌ Failed to disable fallback: ' . htmlspecialchars($disableResult['error']) . '</div>';
+    }
+}
+
+// Test database connection directly first
+$database_needs_init = false;
+$database_error = null;
+$force_init = isset($_GET['force_init']) && $_GET['force_init'] == '1';
+
 try {
+    // Try direct database connection to check tables
+    $directDb = new DatabaseManager();
+    
+    // Check if tables actually exist
+    $reflection = new ReflectionClass($directDb);
+    $connectionProperty = $reflection->getProperty('connection');
+    $connectionProperty->setAccessible(true);
+    $pdo = $connectionProperty->getValue($directDb);
+    
+    $stmt = $pdo->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    if (empty($tables) || $force_init) {
+        // No tables found OR force initialization requested
+        $database_needs_init = true;
+        $database_error = empty($tables) ? "No tables found in database" : "Force initialization requested";
+    } else {
+        // Tables exist, test stats
+        $testStats = $directDb->getStats();
+        $database_initialized = true;
+    }
+    
+} catch (Exception $e) {
+    if (strpos($e->getMessage(), "doesn't exist") !== false || 
+        strpos($e->getMessage(), "Base table or view not found") !== false) {
+        // Tables missing but connection works
+        $database_needs_init = true;
+        $database_error = $e->getMessage();
+    } else {
+        // Real connection error - will use hybrid manager fallback
+        $database_error = $e->getMessage();
+    }
+}
+
+// Now get stats from hybrid manager
+$dataManager = HybridDataManager::getInstance();
+
+// Ensure dashboard reflects current MySQL availability: try to disable fallback and sync pending ops.
+try {
+    $tryDisable = $dataManager->disableFallback();
+    // attempt a sync if disable succeeded or even if not, to flush pending ops
+    $dataManager->syncToMySQL();
+} catch (Throwable $e) {
+    // ignore errors here; the dashboard will show fallback state accordingly
+}
+
+if (isset($database_initialized) && $database_initialized) {
+    // Database fully working, use normal stats
     $stats = $dataManager->getStats();
     $questions_count = $stats['questions'] ?? 0;
     $users_count = $stats['users'] ?? 0;
     $total_sessions = $stats['sessions'] ?? 0;
     $avg_score = $stats['avg_score'] ?? 0;
+    
+    $sql = <<<'SQL'
+SELECT gs.*, u.username
+FROM game_sessions gs
+LEFT JOIN users u ON gs.user_id = u.id
+ORDER BY gs.completed_at DESC
+LIMIT 10
+SQL;
 
-    // Get recent activity
-    $recent_sessions = $dataManager->query("
-        SELECT gs.*, u.username 
-        FROM game_sessions gs 
-        LEFT JOIN user_stats u ON gs.user_id = u.id 
-        ORDER BY gs.created_at DESC 
-        LIMIT 10
-    ");
-} catch (Exception $e) {
-    // If database is not initialized yet, show setup message
-    $database_error = $e->getMessage();
-    $questions_count = 0;
-    $users_count = 0;
-    $total_sessions = 0;
-    $avg_score = 0;
+    $recent_sessions = $dataManager->query($sql);
+} else {
+    // Use fallback stats or zero stats
+    $stats = $dataManager->getStats();
+    $questions_count = $stats['questions'] ?? 0;
+    $users_count = $stats['users'] ?? 0;
+    $total_sessions = $stats['sessions'] ?? 0;
+    $avg_score = $stats['avg_score'] ?? 0;
     $recent_sessions = [];
 }
 
@@ -70,10 +133,16 @@ $page_title = "Dashboard";
 include 'includes/header.php';
 ?>
 
-<?php if (isset($database_error)): ?>
+<!-- Quick action: Force DB init (one-time) -->
+<div style="margin: 12px 0;">
+    <a href="dashboard.php?force_init=1" class="btn btn-sm btn-warning">🚨 Force Database Initialization (one-time)</a>
+    <small style="margin-left:8px;color:#555;">Click once to show the database initialization UI. Use only when you intend to initialize.</small>
+</div>
+
+<?php if (isset($database_needs_init) && $database_needs_init): ?>
 <div class="alert alert-warning">
     <h4>Database Setup Required</h4>
-    <p>The database tables need to be initialized. Click the button below to set up the database.</p>
+    <p>The database connection is working, but tables need to be initialized. Click the button below to set up the database.</p>
     
     <?php
     // Handle database initialization if requested
@@ -114,7 +183,7 @@ include 'includes/header.php';
             echo "<br>🔧 <strong>Step 4:</strong> Connecting to target database...<br>";
             flush();
             
-            $db = DatabaseManager::getInstance();
+            $db = new DatabaseManager();
             echo "✓ DatabaseManager instance created<br>";
             flush();
             
@@ -195,6 +264,10 @@ include 'includes/header.php';
                         <button type="submit" name="sync_to_mysql" class="btn btn-sm btn-primary">
                             🔄 Try Sync to MySQL
                         </button>
+                    </form>
+                    <form method="POST" style="display: inline; margin-left:8px;">
+                        <input type="hidden" name="disable_fallback" value="1" />
+                        <button type="submit" class="btn btn-sm btn-warning">🔧 Disable JSON Fallback</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-info" onclick="toggleSyncLog()">
                         📋 View Sync Log

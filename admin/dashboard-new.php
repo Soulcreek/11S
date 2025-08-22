@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'includes/DatabaseManager.php';
+require_once 'includes/HybridDataManager.php';
 require_once 'includes/SubdomainConfig.php';
 
 // Check authentication
@@ -9,25 +10,27 @@ if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
     exit;
 }
 
-$db = DatabaseManager::getInstance();
+$dataManager = HybridDataManager::getInstance();
 $config = new SubdomainConfig();
 
 // Get statistics from database
 try {
-    $stats = $db->getStats();
+    $stats = $dataManager->getStats();
     $questions_count = $stats['questions'] ?? 0;
     $users_count = $stats['users'] ?? 0;
     $total_sessions = $stats['sessions'] ?? 0;
     $avg_score = $stats['avg_score'] ?? 0;
 
     // Get recent activity
-    $recent_sessions = $db->query("
-        SELECT gs.*, u.username 
-        FROM game_sessions gs 
-        LEFT JOIN user_stats u ON gs.user_id = u.id 
-        ORDER BY gs.created_at DESC 
-        LIMIT 10
-    ");
+    $sql = <<<'SQL'
+SELECT gs.*, u.username
+FROM game_sessions gs
+LEFT JOIN users u ON gs.user_id = u.id
+ORDER BY gs.created_at DESC
+LIMIT 10
+SQL;
+
+    $recent_sessions = $dataManager->query($sql);
 } catch (Exception $e) {
     // If database is not initialized yet, show setup message
     $database_error = $e->getMessage();

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'includes/DatabaseManager.php';
+require_once 'includes/HybridDataManager.php';
 require_once 'includes/SubdomainConfig.php';
 
 // Check authentication
@@ -9,15 +10,15 @@ if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
     exit;
 }
 
-$db = DatabaseManager::getInstance();
+$dataManager = HybridDataManager::getInstance();
 $config = new SubdomainConfig();
 
 // Get detailed statistics
 try {
-    $stats = $db->getStats();
+    $stats = $dataManager->getStats();
     
     // Get user statistics
-    $user_stats = $db->query("
+    $user_stats = $dataManager->query("
         SELECT 
             COUNT(*) as total_users,
             COUNT(CASE WHEN account_type = 'user' THEN 1 END) as regular_users,
@@ -28,7 +29,7 @@ try {
     ")[0];
     
     // Get question statistics
-    $question_stats = $db->query("
+    $question_stats = $dataManager->query("
         SELECT 
             COUNT(*) as total_questions,
             COUNT(CASE WHEN difficulty = 'easy' THEN 1 END) as easy_questions,
@@ -39,16 +40,18 @@ try {
     ")[0];
     
     // Get recent game sessions
-    $recent_games = $db->query("
-        SELECT gs.*, u.username 
-        FROM game_sessions gs 
-        LEFT JOIN users u ON gs.user_id = u.id 
-        ORDER BY gs.created_at DESC 
-        LIMIT 20
-    ");
+    $sql_recent = <<<'SQL'
+SELECT gs.*, u.username
+FROM game_sessions gs
+LEFT JOIN users u ON gs.user_id = u.id
+ORDER BY gs.created_at DESC
+LIMIT 20
+SQL;
+
+    $recent_games = $dataManager->query($sql_recent);
     
     // Get top performers
-    $top_performers = $db->query("
+    $top_performers = $dataManager->query("
         SELECT u.username, us.best_score, us.games_played, us.average_score
         FROM user_stats us
         JOIN users u ON us.user_id = u.id

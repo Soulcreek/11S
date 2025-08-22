@@ -1,6 +1,6 @@
 {
   "auth": {
-    "google_client_id": "",
+    "google_client_id": "532893965816-a3coqfs5hb48nr10lpme8pea3pqar2um.apps.googleusercontent.com",
     "google_client_secret": "",
     "google_redirect_uri": "http://localhost:3000/auth/google/callback",
     "email_smtp": {

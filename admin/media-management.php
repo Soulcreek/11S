@@ -573,11 +573,7 @@ function formatBytes($bytes) {
                 <div class="logo-text">Medien & Branding</div>
             </div>
             <div class="nav-links">
-                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="question-management.php"><i class="fas fa-question-circle"></i> Fragen</a>
-                <a href="user-management.php"><i class="fas fa-users"></i> Benutzer</a>
-                <a href="settings.php"><i class="fas fa-cog"></i> Einstellungen</a>
-                <a href="index.php?logout=1"><i class="fas fa-sign-out-alt"></i> Abmelden</a>
+                    <?php include __DIR__ . '/includes/nav.php'; ?>
             </div>
         </div>
     </header>

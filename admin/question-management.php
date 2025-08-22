@@ -503,12 +503,7 @@ $stats = [
                 <div class="logo-icon">❓</div>
                 <div class="logo-text">Fragen verwalten</div>
             </div>
-            <div class="nav-links">
-                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="user-management.php"><i class="fas fa-users"></i> Benutzer</a>
-                <a href="question-generator.php"><i class="fas fa-magic"></i> KI Generator</a>
-                <a href="index.php?logout=1"><i class="fas fa-sign-out-alt"></i> Abmelden</a>
-            </div>
+            <?php include __DIR__ . '/includes/nav.php'; ?>
         </div>
     </header>
 

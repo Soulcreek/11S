@@ -2,6 +2,9 @@
 // File: admin/includes/HybridDataManager.php
 // Description: Hybrid data manager with MySQL primary and JSON fallback
 
+// Ensure DatabaseManager is available when this file is included directly
+require_once __DIR__ . '/DatabaseManager.php';
+
 class HybridDataManager {
     private static $instance = null;
     private $primaryDb = null;
@@ -24,12 +27,26 @@ class HybridDataManager {
     
     private function initializePrimary() {
         try {
-            $this->primaryDb = DatabaseManager::getInstance();
+            $this->primaryDb = new DatabaseManager();
+
+            // Verify the connection with a lightweight test
+            try {
+                $test = $this->primaryDb->testConnection();
+                if (!isset($test['success']) || $test['success'] !== true) {
+                    throw new Exception('Test connection failed: ' . ($test['message'] ?? 'unknown'));
+                }
+            } catch (Exception $inner) {
+                // If verification fails, treat as unavailable
+                throw new Exception('Primary connection verification failed: ' . $inner->getMessage());
+            }
+
             $this->fallbackMode = false;
             $this->log("✅ Primary MySQL connection established");
         } catch (Exception $e) {
             $this->fallbackMode = true;
             $this->log("⚠️ MySQL unavailable, switching to JSON fallback: " . $e->getMessage());
+            // Persist a small log for easier debugging on the server
+            $this->writeLogToFile("MySQL unavailable during initializePrimary: " . $e->getMessage());
         }
     }
     
@@ -62,15 +79,55 @@ class HybridDataManager {
     private function log($message) {
         $this->syncLog[] = date('H:i:s') . " - " . $message;
         error_log("[HybridDataManager] " . $message);
+        // Also write to hybrid trace log for easier inspection on the host
+        $this->writeLogToFile($message);
+    }
+
+    private function writeLogToFile($message) {
+        try {
+            $path = $this->jsonDataPath . 'hybrid.log';
+            $entry = date('Y-m-d H:i:s') . " - " . $message . "\n";
+            // Ensure data directory exists
+            if (!is_dir($this->jsonDataPath)) {
+                mkdir($this->jsonDataPath, 0755, true);
+            }
+            file_put_contents($path, $entry, FILE_APPEND | LOCK_EX);
+        } catch (Throwable $e) {
+            // Best-effort logging - don't break main flow
+        }
     }
     
     public function getStats() {
         if (!$this->fallbackMode && $this->primaryDb) {
             try {
-                return $this->primaryDb->getStats();
+                $dbStats = $this->primaryDb->getStats();
+                
+                // Calculate average score from game_sessions
+                $avgScore = 0;
+                try {
+                    $result = $this->primaryDb->fetchOne("SELECT AVG(score) as avg_score FROM game_sessions WHERE score IS NOT NULL");
+                    $avgScore = round($result['avg_score'] ?? 0, 2);
+                } catch (Exception $e) {
+                    $avgScore = 0;
+                }
+                
+                // Map DatabaseManager keys to dashboard expected keys
+                return [
+                    'questions' => $dbStats['total_questions'] ?? 0,
+                    'users' => $dbStats['total_users'] ?? 0,
+                    'sessions' => $dbStats['total_games'] ?? 0,
+                    'avg_score' => $avgScore
+                ];
             } catch (Exception $e) {
-                $this->log("❌ MySQL stats failed, falling back to JSON: " . $e->getMessage());
-                $this->fallbackMode = true;
+                // Only fallback if it's a connection error, not missing tables
+                if (strpos($e->getMessage(), "doesn't exist") === false && 
+                    strpos($e->getMessage(), "Base table or view not found") === false) {
+                    $this->log("❌ MySQL stats failed, falling back to JSON: " . $e->getMessage());
+                    $this->fallbackMode = true;
+                } else {
+                    // Re-throw table missing errors so dashboard can handle them
+                    throw $e;
+                }
             }
         }
         
@@ -100,9 +157,25 @@ class HybridDataManager {
     }
     
     public function query($sql, $params = []) {
+        // Sanitize common accidental string continuations: remove backslash-newline sequences
+        // and trim leading/trailing whitespace. This prevents malformed SQL like:
+        // "\
+        //     SELECT ..." which can trigger SQL syntax errors on MySQL.
+        try {
+            if (is_string($sql)) {
+                // Remove occurrences of backslash followed by optional spaces and a newline
+                $sql = preg_replace('/\\\\\s*\n/', ' ', $sql);
+                // Also collapse multiple consecutive whitespace/newlines into single space
+                $sql = preg_replace('/[\r\n\s]+/', ' ', $sql);
+                $sql = trim($sql);
+            }
+        } catch (Throwable $e) {
+            // If regex fails for any reason, fall back to original SQL
+        }
         if (!$this->fallbackMode && $this->primaryDb) {
             try {
-                return $this->primaryDb->query($sql, $params);
+                // Use fetchAll to get actual results instead of PDO statement
+                return $this->primaryDb->fetchAll($sql, $params);
             } catch (Exception $e) {
                 $this->log("❌ MySQL query failed: " . $e->getMessage());
                 $this->fallbackMode = true;
@@ -166,10 +239,16 @@ class HybridDataManager {
     public function syncToMySQL() {
         if ($this->fallbackMode) {
             try {
-                $this->primaryDb = DatabaseManager::getInstance();
+                $this->primaryDb = new DatabaseManager();
+                // Verify connection before leaving fallback mode
+                $test = $this->primaryDb->testConnection();
+                if (!isset($test['success']) || $test['success'] !== true) {
+                    throw new Exception('Verification failed: ' . ($test['message'] ?? 'unknown'));
+                }
                 $this->fallbackMode = false;
                 $this->log("🔄 MySQL connection restored, starting sync...");
             } catch (Exception $e) {
+                $this->writeLogToFile("Sync attempt failed to reconnect MySQL: " . $e->getMessage());
                 return ['success' => false, 'error' => 'MySQL still unavailable: ' . $e->getMessage()];
             }
         }
@@ -216,5 +295,26 @@ class HybridDataManager {
     public function getPendingOperations() {
         $syncStatus = json_decode(file_get_contents($this->jsonDataPath . 'sync_status.json'), true);
         return $syncStatus['pending_operations'] ?? [];
+    }
+
+    /**
+     * Attempt to disable JSON fallback by verifying MySQL connectivity.
+     * Returns an array with success and message/error.
+     */
+    public function disableFallback() {
+        try {
+            $this->primaryDb = new DatabaseManager();
+            $test = $this->primaryDb->testConnection();
+            if (!isset($test['success']) || $test['success'] !== true) {
+                throw new Exception('Verification failed: ' . ($test['message'] ?? 'unknown'));
+            }
+            $this->fallbackMode = false;
+            $this->log("🔧 Fallback mode disabled by operator; MySQL confirmed.");
+            $this->writeLogToFile("Fallback disabled via admin: MySQL verified");
+            return ['success' => true, 'message' => 'Fallback disabled; using MySQL.'];
+        } catch (Exception $e) {
+            $this->writeLogToFile('Failed to disable fallback: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
     }
 }

@@ -398,12 +398,7 @@ $top_suspicious_users = array_slice($user_flag_counts, 0, 10, true);
                 <div class="logo-text">Sicherheits-Dashboard</div>
             </div>
             <div class="nav-links">
-                <a href="dashboard.php"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="user-management-enhanced.php"><i class="fas fa-users"></i> Benutzer</a>
-                <a href="question-management.php"><i class="fas fa-question-circle"></i> Fragen</a>
-                <a href="media-management.php"><i class="fas fa-palette"></i> Branding</a>
-                <a href="settings.php"><i class="fas fa-cog"></i> Einstellungen</a>
-                <a href="index.php?logout=1"><i class="fas fa-sign-out-alt"></i> Abmelden</a>
+                <?php include __DIR__ . '/includes/nav.php'; ?>
             </div>
         </div>
     </header>
