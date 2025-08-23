@@ -15,6 +15,7 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onShowMultipl
   const [playerStats, setPlayerStats] = useState({});
   const [levelProgress, setLevelProgress] = useState({});
   const [recentAchievements, setRecentAchievements] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     // Get username from localStorage
@@ -25,6 +26,14 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onShowMultipl
     const role = localStorage.getItem('userRole');
     setIsAdmin(role === 'admin');
     loadPlayerData();
+
+    // Handle window resize for responsive design
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadPlayerData = () => {
@@ -75,6 +84,8 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onShowMultipl
       />
     );
   }
+
+  const styles = getStyles(isMobile);
 
   return (
     <div style={styles.container}>
@@ -257,8 +268,8 @@ const MenuPage = ({ onStartGame, onShowHighscores, onShowSettings, onShowMultipl
   );
 };
 
-// Styles
-const styles = {
+// Styles function that takes isMobile parameter
+const getStyles = (isMobile) => ({
   container: {
     display: 'flex',
     justifyContent: 'center',
@@ -267,16 +278,17 @@ const styles = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     fontFamily: 'Arial, sans-serif',
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    padding: isMobile ? '10px' : '20px'
   },
   menuContainer: {
-    padding: '40px',
-    borderRadius: '20px',
+    padding: isMobile ? '20px' : '40px',
+    borderRadius: isMobile ? '15px' : '20px',
     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     backdropFilter: 'blur(10px)',
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: isMobile ? '90vw' : '500px',
     textAlign: 'center',
     position: 'relative',
     zIndex: 10
@@ -285,7 +297,7 @@ const styles = {
     marginBottom: '40px'
   },
   title: {
-    fontSize: '48px',
+    fontSize: isMobile ? '32px' : '48px',
     fontWeight: 'bold',
     background: 'linear-gradient(45deg, #667eea, #764ba2)',
     WebkitBackgroundClip: 'text',
@@ -515,6 +527,6 @@ const styles = {
     background: 'linear-gradient(45deg, #FFD700, #FFA500)',
     cursor: 'help'
   }
-};
+});
 
 export default MenuPage;
