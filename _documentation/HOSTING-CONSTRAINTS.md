@@ -6,11 +6,11 @@
 
 ### What This Means:
 
-- ❌ NO Node.js server
-- ❌ NO Express.js endpoints
-- ❌ NO /api/\* routes
-- ❌ NO server-side JavaScript
-- ❌ NO backend processes
+-- NO Node.js server
+-- NO Express.js endpoints
+-- NO /api/\* routes
+-- NO server-side JavaScript
+-- NO backend processes
 
 ### What We CAN Use:
 

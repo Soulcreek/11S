@@ -41,9 +41,9 @@ try {
         echo "<strong>✅ SUCCESS!</strong> HybridDataManager fix is working. Statistics should now display correctly.";
         echo "</div>";
     } else {
-        echo "<div style='background: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>";
-        echo "<strong>❌ ISSUE:</strong> HybridDataManager is still not returning proper data.";
-        echo "</div>";
+    echo "<div style='background: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>";
+    echo "<strong>ISSUE:</strong> HybridDataManager is still not returning proper data.";
+    echo "</div>";
     }
 
 } catch (Exception $e) {

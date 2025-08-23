@@ -5,14 +5,22 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "deploy-test": "node AUTO-DEPLOY-MK/mk_deploy-cli.js --dry-run",
+    "deploy-live": "node AUTO-DEPLOY-MK/mk_deploy-cli.js --project web --target production --parts default",
+    "deploy-local": "node AUTO-DEPLOY-MK/mk_deploy-cli.js --project web --target local --parts default"
   },
   "dependencies": {
     "express": "^4.18.2",
     "mysql2": "^3.6.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "basic-ftp": "^5.0.3",
+    "js-yaml": "^4.1.0",
+    "node-fetch": "^2.6.7",
+    "fast-glob": "^3.3.1",
+    "commander": "^9.4.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

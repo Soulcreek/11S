@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-08-23T13:55:23.566Z",
+  "project": "web",
+  "target": "production",
+  "parts": [
+    "default"
+  ],
+  "files": [],
+  "verification": null,
+  "success": false,
+  "error": "Local source path not found: web/build"
+}

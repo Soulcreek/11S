@@ -274,7 +274,7 @@ const SimultaneousMultiplayerGame = ({ gameConfig, players, onBackToSetup, onBac
                 ...styles.playerResult,
                 ...(answer === currentQuestion.correctAnswer ? styles.correctPlayerResult : styles.wrongPlayerResult)
               }}>
-                {player}: {answer === currentQuestion.correctAnswer ? '✅ Richtig' : '❌ Falsch'}
+                {player}: {answer === currentQuestion.correctAnswer ? '✅ Richtig' : 'Falsch'}
               </div>
             ))}
           </div>

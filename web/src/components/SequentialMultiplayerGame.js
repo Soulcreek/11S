@@ -204,7 +204,7 @@ const SequentialMultiplayerGame = ({ gameConfig, players, onBackToSetup, onBackT
           ) : selectedAnswer === -1 ? (
             <div style={styles.wrongFeedback}>⏰ Zeit abgelaufen!</div>
           ) : (
-            <div style={styles.wrongFeedback}>❌ Falsch! Die richtige Antwort war {String.fromCharCode(65 + currentQuestion.correctAnswer)}</div>
+      <div style={styles.wrongFeedback}>Falsch! Die richtige Antwort war {String.fromCharCode(65 + currentQuestion.correctAnswer)}</div>
           )}
         </div>
       )}

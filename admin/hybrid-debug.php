@@ -19,10 +19,10 @@ try {
         echo "✅ Direct database connection: SUCCESS<br>";
         echo "MySQL Version: " . htmlspecialchars($testResult['data']['version']) . "<br>";
     } else {
-        echo "❌ Direct database connection: FAILED - " . htmlspecialchars($testResult['message']) . "<br>";
+        echo "Direct database connection: FAILED - " . htmlspecialchars($testResult['message']) . "<br>";
     }
 } catch (Exception $e) {
-    echo "❌ Direct DatabaseManager creation: FAILED<br>";
+    echo "Direct DatabaseManager creation: FAILED<br>";
     echo "Error: " . htmlspecialchars($e->getMessage()) . "<br>";
     echo "File: " . htmlspecialchars($e->getFile()) . " Line: " . $e->getLine() . "<br>";
 }
@@ -45,7 +45,7 @@ try {
     }
     
 } catch (Exception $e) {
-    echo "❌ HybridDataManager creation: FAILED<br>";
+    echo "HybridDataManager creation: FAILED<br>";
     echo "Error: " . htmlspecialchars($e->getMessage()) . "<br>";
     echo "File: " . htmlspecialchars($e->getFile()) . " Line: " . $e->getLine() . "<br>";
 }

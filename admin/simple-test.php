@@ -21,10 +21,10 @@ if (file_exists($configFile)) {
         $pdo = new PDO($dsn, $config['username'], $config['password']);
         echo "<p>✅ Database connection successful!</p>";
     } catch (Exception $e) {
-        echo "<p>❌ Database connection failed: " . htmlspecialchars($e->getMessage()) . "</p>";
+        echo "<p>Database connection failed: " . htmlspecialchars($e->getMessage()) . "</p>";
     }
 } else {
-    echo "<p>❌ Database config not found</p>";
+    echo "<p>Database config not found</p>";
 }
 
 echo "<br><a href='index.php'>Go to Admin Login</a>";

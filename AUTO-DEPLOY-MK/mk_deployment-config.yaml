@@ -1,0 +1,153 @@
+# Configuration for MK Auto-Deploy System
+defaults:
+  verification:
+    timeout: 30000
+    httpTimeout: 10000
+    cleanupVerificationFile: true
+    retries: 3
+    retryDelay: 2000
+  excludes:
+    - "*.tmp"
+    - "*.log"
+    - ".git/**"
+    - ".gitignore"
+    - "README.md"
+    - "node_modules/**"
+    - ".env*"
+    - "deployment-*"
+    - "AUTO-DEPLOY-MK/**"
+    - "_backup*/**"
+    - "_documentation/**"
+    - "_deployment-system/**"
+    - ".htaccess"
+
+# Deployment targets
+# Path Logic:
+# - remoteRoot: Base FTP directory (e.g., "/11seconds.de/httpdocs")
+# - project.parts.remotePath: Subdirectory within remoteRoot for FTP (e.g., "/admin")
+# - project.parts.webPath: Web URL path for verification (e.g., "/admin")
+# - FTP Final path: remoteRoot + remotePath = "/11seconds.de/httpdocs/admin"
+# - Web Final URL: https://domain + webPath = "https://11seconds.de/admin"
+#
+# Environment Variables Required:
+# - FTP_USER: FTP username (e.g., "k302164_11s")
+# - FTP_PASSWORD: FTP password
+targets:
+  production:
+    method: ftp
+    remoteRoot: "/httpdocs" # Fixed: Just the web root, no domain duplication
+    domain: "11seconds.de"
+    ftp:
+      host: "ftp.11seconds.de"
+      user: "${FTP_USER}"
+      password: "${FTP_PASSWORD}"
+      timeout: 30000
+
+  admin-direct:
+    method: ftp
+    remoteRoot: "/httpdocs" # Fixed: Just the web root, no domain duplication
+    domain: "11seconds.de"
+    ftp:
+      host: "ftp.11seconds.de"
+      user: "${FTP_USER}"
+      password: "${FTP_PASSWORD}"
+      timeout: 30000
+
+  local:
+    method: copy
+    localPath: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs-local"
+    domain: "localhost:5000"
+
+# Projects configuration
+projects:
+  web:
+    localSource: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs"
+    localBuild: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs"
+    buildCommand: "" # Build is already done, just upload httpdocs
+
+    # Project parts - different sections of the project
+    parts:
+      default:
+        include:
+          - "**/*"
+        remotePath: "/" # FTP path: /11seconds.de/httpdocs/
+        webPath: "/" # Web URL: https://11seconds.de/
+
+      api:
+        include:
+          - "../admin/**"
+        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
+        webPath: "/admin" # Web URL: https://11seconds.de/admin
+
+      admin:
+        include:
+          - "../admin/**"
+        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
+        webPath: "/admin" # Web URL: https://11seconds.de/admin
+
+      frontend:
+        include:
+          - "*.html"
+          - "*.css"
+          - "*.js"
+          - "httpdocs/**"
+        remotePath: "/"
+
+    # Verification settings
+    verify:
+      enabled: true
+      fileTemplate: "deploy-verify-{timestamp}.html"
+      urlTemplate: "https://{domain}/{file}"
+
+  admin:
+    localSource: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\admin"
+    localBuild: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\admin"
+    buildCommand: ""
+    parts:
+      default:
+        include:
+          - "**/*"
+        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
+        webPath: "/admin" # Web URL: https://11seconds.de/admin
+    verify:
+      enabled: false
+
+  # Example configurations for other frameworks
+  react-app:
+    localSource: "./src"
+    localBuild: "./build"
+    buildCommand: "npm run build"
+    parts:
+      default:
+        include: ["**/*"]
+        remotePath: "/"
+    verify:
+      enabled: true
+      fileTemplate: "deploy-verify-{timestamp}.html"
+      urlTemplate: "https://{domain}/{file}"
+
+  vue-app:
+    localSource: "./src"
+    localBuild: "./dist"
+    buildCommand: "npm run build"
+    parts:
+      default:
+        include: ["**/*"]
+        remotePath: "/"
+    verify:
+      enabled: true
+      fileTemplate: "deploy-verify-{timestamp}.html"
+      urlTemplate: "https://{domain}/{file}"
+
+  angular-app:
+    localSource: "./src"
+    localBuild: "./dist"
+    buildCommand: "ng build --prod"
+    parts:
+      default:
+        include: ["**/*"]
+        remotePath: "/"
+    verify:
+      enabled: true
+      fileTemplate: "deploy-verify-{timestamp}.html"
+      urlTemplate: "https://{domain}/{file}"

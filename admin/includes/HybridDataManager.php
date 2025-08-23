@@ -122,7 +122,7 @@ class HybridDataManager {
                 // Only fallback if it's a connection error, not missing tables
                 if (strpos($e->getMessage(), "doesn't exist") === false && 
                     strpos($e->getMessage(), "Base table or view not found") === false) {
-                    $this->log("❌ MySQL stats failed, falling back to JSON: " . $e->getMessage());
+                    $this->log("MySQL stats failed, falling back to JSON: " . $e->getMessage());
                     $this->fallbackMode = true;
                 } else {
                     // Re-throw table missing errors so dashboard can handle them
@@ -177,7 +177,7 @@ class HybridDataManager {
                 // Use fetchAll to get actual results instead of PDO statement
                 return $this->primaryDb->fetchAll($sql, $params);
             } catch (Exception $e) {
-                $this->log("❌ MySQL query failed: " . $e->getMessage());
+                $this->log("MySQL query failed: " . $e->getMessage());
                 $this->fallbackMode = true;
             }
         }
@@ -201,7 +201,7 @@ class HybridDataManager {
                 $success = true;
                 $this->log("✅ User added to MySQL: " . $userData['username']);
             } catch (Exception $e) {
-                $this->log("❌ MySQL addUser failed: " . $e->getMessage());
+                $this->log("MySQL addUser failed: " . $e->getMessage());
                 $this->fallbackMode = true;
             }
         }

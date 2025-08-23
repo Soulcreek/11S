@@ -46,7 +46,7 @@ if (isset($_POST['disable_fallback']) && $_POST['disable_fallback'] == '1') {
     if ($disableResult['success']) {
         echo '<div class="alert alert-success">🔧 ' . htmlspecialchars($disableResult['message']) . '</div>';
     } else {
-        echo '<div class="alert alert-danger">❌ Failed to disable fallback: ' . htmlspecialchars($disableResult['error']) . '</div>';
+        echo '<div class="alert alert-danger'>Failed to disable fallback: ' . htmlspecialchars($disableResult['error']) . '</div>';
     }
 }
 
@@ -175,7 +175,7 @@ include 'includes/header.php';
             if ($stmt->rowCount() > 0) {
                 echo "✓ Database '{$config['database']}' exists<br>";
             } else {
-                echo "❌ Database '{$config['database']}' does not exist!<br>";
+                echo "Database '{$config['database']}' does not exist!<br>";
                 throw new Exception("Database {$config['database']} not found");
             }
             flush();
@@ -225,7 +225,7 @@ include 'includes/header.php';
         } catch (Exception $init_error) {
             echo '</div>';
             echo '<div class="alert alert-danger">
-                ❌ <strong>Database initialization failed!</strong><br><br>
+                <strong>Database initialization failed!</strong><br><br>
                 <strong>Error Details:</strong><br>
                 <code>' . htmlspecialchars($init_error->getMessage()) . '</code><br><br>
                 <strong>Location:</strong> ' . htmlspecialchars(basename($init_error->getFile())) . ' (Line ' . $init_error->getLine() . ')<br><br>

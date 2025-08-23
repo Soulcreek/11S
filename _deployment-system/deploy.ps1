@@ -1,24 +1,271 @@
-# Universal Static Website Deployment Script
-# Deploys static websites via FTP with SSH fallback
-# Works for React, Vue, Angular, or plain HTML projects
+# 11Seconds Deployment Script - Zentrales Deployment System
+# Version: 2.0.0
+# Datum: 2025-08-23
 
 param(
-    [Parameter(Mandatory = $false)]
-    [ValidateSet("ftp", "ssh", "auto")]
-    [string]$Method = "auto",
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("web", "api", "all")]
+    [string]$Component = "all",
     
-    [Parameter(Mandatory = $false)]
-    [switch]$Build = $false,
+    [Parameter(Mandatory=$false)]
+    [switch]$BuildOnly,
     
-    [Parameter(Mandatory = $false)]
-    [switch]$Test = $false,
+    [Parameter(Mandatory=$false)]
+    [switch]$UploadOnly,
     
-    [Parameter(Mandatory = $false)]
-    [switch]$ShowDetails = $false,
-    
-    [Parameter(Mandatory = $false)]
-    [string]$ConfigFile = "deployment-config.env"
+    [Parameter(Mandatory=$false)]
+    [switch]$Force
 )
+
+# =====================================================
+# DEPLOYMENT KONFIGURATION - BASIEREND AUF NODE.JS CONFIG
+# =====================================================
+# Node.js-Version: 22.18.0
+# Package Manager: npm
+# Dokumentenstamm: /11seconds.de/httpdocs
+# Anwendungsstamm: /11seconds.de
+# Anwendungsstartdatei: app.js
+# URL: http://11seconds.de
+
+$Config = @{
+    # Lokale Pfade
+    LocalPaths = @{
+        Root = "c:\Users\Marcel\Documents\GitHub\11S"
+        WebSource = "c:\Users\Marcel\Documents\GitHub\11S\web"
+    # Use CRA default build output directory
+    WebBuild = "c:\Users\Marcel\Documents\GitHub\11S\web\build"
+        ApiSource = "c:\Users\Marcel\Documents\GitHub\11S\api"
+        LocalDeploy = "c:\Users\Marcel\Documents\GitHub\11S\httpdocs"
+    }
+    
+    # Remote Server Struktur (EXAKT nach Node.js Konfiguration)
+    RemotePaths = @{
+        AppRoot = "/11seconds.de"                    # Anwendungsstamm
+        DocumentRoot = "/11seconds.de/httpdocs"      # Dokumentenstamm - hier kommen React Build Files hin
+        ApiFiles = "/11seconds.de"                   # API Files (app.js etc.) in Anwendungsstamm
+        StaticFiles = "/11seconds.de/httpdocs/static" # Static Assets (JS/CSS)
+    }
+    
+    # Build Konfiguration
+    Build = @{
+        NodeVersion = "22.18.0"
+        PackageManager = "npm"
+        ProductionMode = $true
+    }
+}
+
+# =====================================================
+# HILFSFUNKTIONEN
+# =====================================================
+
+function Write-DeployLog {
+    param([string]$Message, [string]$Level = "INFO")
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $color = switch ($Level) {
+        "ERROR" { "Red" }
+        "WARN" { "Yellow" }
+        "SUCCESS" { "Green" }
+        default { "White" }
+    }
+    Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $color
+}
+
+function Test-Prerequisites {
+    Write-DeployLog "Checking prerequisites..."
+    
+    # Check Node.js
+    try {
+        $nodeVersion = node --version
+        Write-DeployLog "Node.js version: $nodeVersion"
+        if (-not $nodeVersion.StartsWith("v22")) {
+            Write-DeployLog "Warning: Expected Node.js v22.x, found $nodeVersion" -Level "WARN"
+        }
+    } catch {
+        Write-DeployLog "Node.js not found! Please install Node.js 22.18.0" -Level "ERROR"
+        return $false
+    }
+    
+    # Check npm
+    try {
+        $npmVersion = npm --version
+        Write-DeployLog "npm version: $npmVersion"
+    } catch {
+        Write-DeployLog "npm not found!" -Level "ERROR"
+        return $false
+    }
+    
+    # Check paths
+    if (-not (Test-Path $Config.LocalPaths.Root)) {
+        Write-DeployLog "Project root not found: $($Config.LocalPaths.Root)" -Level "ERROR"
+        return $false
+    }
+    
+    return $true
+}
+
+function Build-WebApplication {
+    Write-DeployLog "Building web application..."
+    
+    $webPath = $Config.LocalPaths.WebSource
+    if (-not (Test-Path $webPath)) {
+        Write-DeployLog "Web source directory not found: $webPath" -Level "ERROR"
+        return $false
+    }
+    
+    Push-Location $webPath
+    try {
+        # Clean previous build
+        if (Test-Path "httpdocs") {
+            Remove-Item -Recurse -Force "httpdocs"
+            Write-DeployLog "Cleaned previous build"
+        }
+        
+        # Install dependencies if needed
+        if (-not (Test-Path "node_modules") -or $Force) {
+            Write-DeployLog "Installing dependencies..."
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                throw "npm install failed"
+            }
+        }
+        
+        # Build application
+        Write-DeployLog "Building React application..."
+        $env:NODE_ENV = "production"
+        npm run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "Build failed"
+        }
+        
+        # Verify build output
+        $buildPath = Join-Path $webPath "httpdocs"
+        if (-not (Test-Path $buildPath)) {
+            throw "Build output not found at $buildPath"
+        }
+        
+        $indexFile = Join-Path $buildPath "index.html"
+        if (-not (Test-Path $indexFile)) {
+            throw "index.html not found in build output"
+        }
+        
+        # Show build stats
+        $buildSize = (Get-ChildItem -Recurse $buildPath | Measure-Object -Property Length -Sum).Sum / 1MB
+        Write-DeployLog "Build size: $([math]::Round($buildSize, 2)) MB"
+        
+        Write-DeployLog "Web application built successfully" -Level "SUCCESS"
+        return $true
+        
+    } catch {
+        Write-DeployLog "Build failed: $($_.Exception.Message)" -Level "ERROR"
+        return $false
+    } finally {
+        Pop-Location
+    }
+}
+
+function Deploy-LocalFiles {
+    Write-DeployLog "Deploying files locally..."
+    
+    $sourcePath = $Config.LocalPaths.WebBuild
+    $targetPath = $Config.LocalPaths.LocalDeploy
+    
+    if (-not (Test-Path $sourcePath)) {
+        Write-DeployLog "Source build not found: $sourcePath" -Level "ERROR"
+        return $false
+    }
+    
+    try {
+        # Clean target directory
+        if (Test-Path $targetPath) {
+            Remove-Item -Recurse -Force "$targetPath\*"
+            Write-DeployLog "Cleaned local deployment directory"
+        } else {
+            New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+        }
+        
+        # Copy files
+        Write-DeployLog "Copying build files to local deployment directory..."
+        Copy-Item -Recurse -Force "$sourcePath\*" $targetPath
+        
+        # Update Service Worker with new cache version to force browser refresh
+        $swFile = Join-Path $targetPath "sw.js"
+        if (Test-Path $swFile) {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            (Get-Content $swFile) -replace "11seconds-v[\d\.\-\w]+", "11seconds-v2.3.0-$timestamp" | Set-Content $swFile
+            Write-DeployLog "Updated Service Worker cache version to force browser refresh"
+        }
+        
+        # Create deployment manifest
+        $manifest = @{
+            DeploymentTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            Component = $Component
+            BuildHash = (Get-FileHash -Path (Join-Path $targetPath "index.html")).Hash.Substring(0,8)
+            Files = (Get-ChildItem -Recurse $targetPath | Measure-Object).Count
+        }
+        $manifest | ConvertTo-Json | Out-File -FilePath (Join-Path $targetPath "deployment-manifest.json")
+        
+        Write-DeployLog "Local deployment completed successfully" -Level "SUCCESS"
+        return $true
+        
+    } catch {
+        Write-DeployLog "Local deployment failed: $($_.Exception.Message)" -Level "ERROR"
+        return $false
+    }
+}
+
+function Test-Deployment {
+    Write-DeployLog "Testing deployment..."
+    
+    # Check local files
+    $requiredFiles = @("index.html", "static", "manifest.json", "sw.js")
+    $deployPath = $Config.LocalPaths.LocalDeploy
+    
+    foreach ($file in $requiredFiles) {
+        $filePath = Join-Path $deployPath $file
+        if (-not (Test-Path $filePath)) {
+            Write-DeployLog "Required file missing: $file" -Level "ERROR"
+            return $false
+        }
+    }
+    
+    # Check for main JS and CSS files
+    $staticPath = Join-Path $deployPath "static"
+    $jsFiles = Get-ChildItem -Path (Join-Path $staticPath "js") -Filter "main.*.js" -ErrorAction SilentlyContinue
+    $cssFiles = Get-ChildItem -Path (Join-Path $staticPath "css") -Filter "main.*.css" -ErrorAction SilentlyContinue
+    
+    if ($jsFiles.Count -eq 0) {
+        Write-DeployLog "No main JS file found in build" -Level "ERROR"
+        return $false
+    }
+    
+    if ($cssFiles.Count -eq 0) {
+        Write-DeployLog "No main CSS file found in build" -Level "ERROR"
+        return $false
+    }
+    
+    Write-DeployLog "Found JS: $($jsFiles[0].Name), CSS: $($cssFiles[0].Name)"
+    Write-DeployLog "Deployment test passed" -Level "SUCCESS"
+    return $true
+}
+
+function Show-UploadInstructions {
+    Write-DeployLog "=== UPLOAD INSTRUCTIONS ===" -Level "SUCCESS"
+    Write-DeployLog "Your files are ready for upload in: $($Config.LocalPaths.LocalDeploy)" -Level "SUCCESS"
+    Write-DeployLog ""
+    Write-DeployLog "MAPPING FOR NODE.JS HOSTING:" -Level "SUCCESS"
+    Write-DeployLog "Local Path -> Remote Path (Node.js Config)" -Level "SUCCESS"
+    Write-DeployLog "httpdocs/* -> /11seconds.de/httpdocs/ (Dokumentenstamm)" -Level "SUCCESS"
+    Write-DeployLog "api/* -> /11seconds.de/ (Anwendungsstamm - für app.js)" -Level "SUCCESS"
+    Write-DeployLog ""
+    Write-DeployLog "CRITICAL: Upload ALL contents of httpdocs folder to /11seconds.de/httpdocs/" -Level "WARN"
+    Write-DeployLog "This includes: index.html, static/js/, static/css/, manifest.json, sw.js" -Level "WARN"
+    Write-DeployLog ""
+    Write-DeployLog "After upload, test at: http://11seconds.de" -Level "SUCCESS"
+}
+
+# =====================================================
+# HAUPTLOGIK
+# =====================================================
 
 # Color functions for better output
 function Write-Success { param($msg) Write-Host "[SUCCESS] $msg" -ForegroundColor Green }
@@ -180,13 +427,17 @@ function Create-FTPDirectory {
 
 # Deploy via FTP (frontend + optional backend)
 function Deploy-ViaFTP {
+    # Use resolved BUILD_PATH if present in process env, otherwise expect Start-Deployment to set $global:ResolvedBuildPath
     $buildPath = [Environment]::GetEnvironmentVariable("BUILD_PATH")
+    if (-not $buildPath -and (Get-Variable -Name ResolvedBuildPath -Scope Global -ErrorAction SilentlyContinue)) {
+        $buildPath = $global:ResolvedBuildPath
+    }
     $remotePath = [Environment]::GetEnvironmentVariable("FTP_REMOTE_PATH")
     $uploadBackend = [Environment]::GetEnvironmentVariable("FTP_UPLOAD_BACKEND")
     if (-not $uploadBackend) { $uploadBackend = "true" }
     
     if (-not (Test-Path $buildPath)) {
-        Write-Error "Build directory not found: $buildPath"
+    Write-Error "Build directory not found: $buildPath"
         return $false
     }
     
@@ -248,7 +499,8 @@ function Deploy-ViaFTP {
         if (Upload-FileViaFTP -LocalPath $originalIndexPath -RemotePath "$remotePath/index.html") {
             $stats.Success++
             Write-Success "Successfully replaced index.html with working-app.html"
-        } else {
+        }
+        else {
             $stats.Failed++
             Write-Error "Failed to upload new index.html"
         }
@@ -321,7 +573,7 @@ function Deploy-ViaFTP {
     
     Write-Success "FTP deployment completed"
     Write-Info "✅ Successful uploads: $($stats.Success)"
-    Write-Info "❌ Failed uploads: $($stats.Failed)"
+    Write-Info "Failed uploads: $($stats.Failed)"
     
     return $stats.Failed -eq 0
 }
@@ -355,6 +607,9 @@ function Test-SSHConnection {
 # Deploy via SSH
 function Deploy-ViaSSH {
     $buildPath = [Environment]::GetEnvironmentVariable("BUILD_PATH")
+    if (-not $buildPath -and (Get-Variable -Name ResolvedBuildPath -Scope Global -ErrorAction SilentlyContinue)) {
+        $buildPath = $global:ResolvedBuildPath
+    }
     $sshHost = [Environment]::GetEnvironmentVariable("SSH_HOST")
     $user = [Environment]::GetEnvironmentVariable("SSH_USER")
     $remotePath = [Environment]::GetEnvironmentVariable("SSH_REMOTE_PATH")
@@ -400,11 +655,30 @@ function Start-Deployment {
             return $false
         }
     }
-    
-    # Check if build exists
-    $buildPath = [Environment]::GetEnvironmentVariable("BUILD_PATH")
-    if (-not (Test-Path $buildPath)) {
-        Write-Error "Build directory not found: $buildPath"
+
+    # Resolve BUILD_PATH intelligently: prefer web/build, then web/httpdocs, then repo/httpdocs
+    function Resolve-BuildPath {
+        $envPath = [Environment]::GetEnvironmentVariable("BUILD_PATH")
+        if ($envPath -and (Test-Path $envPath)) { return (Resolve-Path $envPath).Path }
+
+        $candidates = @("web\build", "web\httpdocs", "httpdocs")
+        foreach ($cand in $candidates) {
+            if (Test-Path (Join-Path $PSScriptRoot "..\$cand")) {
+                return (Resolve-Path (Join-Path $PSScriptRoot "..\$cand")).Path
+            }
+            if (Test-Path $cand) { return (Resolve-Path $cand).Path }
+        }
+
+        return $null
+    }
+
+    $buildPath = Resolve-BuildPath
+    if ($buildPath) {
+        $global:ResolvedBuildPath = $buildPath
+    }
+    Write-Info "Resolved BUILD_PATH = $buildPath"
+    if (-not $buildPath) {
+        Write-Error "Build directory not found. Checked BUILD_PATH env and common locations (web/build, web/httpdocs, httpdocs)."
         Write-Info "Run with -Build flag or manually run 'npm run build' in web directory"
         return $false
     }

@@ -42,7 +42,7 @@ if (file_exists($dbFile)) {
     if ($return_var === 0) {
         echo "✓ PHP syntax is valid<br>";
     } else {
-        echo "❌ PHP syntax error:<br>";
+        echo "PHP syntax error:<br>";
         echo "<pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
     }
 }
@@ -63,11 +63,11 @@ try {
         echo "✓ Database connection successful<br>";
         echo "MySQL Version: " . $result['data']['version'] . "<br>";
     } else {
-        echo "❌ Database connection failed: " . htmlspecialchars($result['message']) . "<br>";
+        echo "Database connection failed: " . htmlspecialchars($result['message']) . "<br>";
     }
     
 } catch (Throwable $e) {
-    echo "❌ Error: " . htmlspecialchars($e->getMessage()) . "<br>";
+    echo "Error: " . htmlspecialchars($e->getMessage()) . "<br>";
     echo "File: " . htmlspecialchars($e->getFile()) . "<br>";
     echo "Line: " . $e->getLine() . "<br>";
     echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";

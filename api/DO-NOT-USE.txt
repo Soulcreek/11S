@@ -1,0 +1,25 @@
+🔴🔴🔴 DO NOT USE - LEGACY API ORDNER 🔴🔴🔴
+
+DIESER ORDNER IST NICHT MEHR IN VERWENDUNG!
+
+Diese 11Seconds Quiz App läuft vollständig STATISCH:
+✅ Alle Daten über localStorage im Browser
+✅ Keine Server-Komponente erforderlich
+✅ Kein Backend/API nötig
+✅ Deployment: Nur statische Dateien
+
+WARNUNG: API-Funktionen wurden entfernt
+Die App nutzt KEINE Server-basierten APIs mehr.
+Alle ehemaligen API-Endpoints (/api/*) sind durch 
+client-seitige localStorage-Logik ersetzt worden.
+
+📁 VERWENDETE DATEIEN:
+- web/src/ = React Frontend (EINZIGE PRODUKTIVE KOMPONENTE)
+- httpdocs/ = Deployment-Output (statische Dateien)
+
+⚠️ FÜR ENTWICKLER:
+Falls Sie API-Funktionen hinzufügen möchten:
+BITTE NICHT! Die App ist bewusst als statische 
+Client-App konzipiert.
+
+Weitere Details: README-STATIC-ARCHITECTURE.md

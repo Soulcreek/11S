@@ -1,0 +1,63 @@
+version: 1
+targets:
+  production:
+    method: ftp
+    ftp:
+      host: ftp.11seconds.de
+      user: ${FTP_USER}
+      password: ${FTP_PASSWORD}
+      timeout: 30000
+    remoteRoot: /11seconds.de/httpdocs
+    domain: https://11seconds.de
+  local:
+    method: copy
+    localPath: ./httpdocs-local
+    domain: http://localhost:5000
+
+projects:
+  web:
+    localSource: ../web
+    localBuild: ../web/build
+    buildCommand: npm run build
+    parts:
+      default:
+        include:
+          - "index.html"
+          - "static/**"
+          - "manifest.json"
+          - "sw.js"
+        remotePath: "/"
+      admin:
+        include:
+          - "admin/**"
+        remotePath: "/admin"
+    verify:
+      enabled: true
+      fileTemplate: "deploy-verify-{timestamp}.html"
+      urlTemplate: "{domain}/{file}"
+
+  api:
+    localSource: api
+    parts:
+      server:
+        include:
+          - "**/*.js"
+          - "package.json"
+          - "package-lock.json"
+        exclude:
+          - "node_modules/**"
+          - "tests/**"
+        remotePath: "/"
+
+defaults:
+  excludes:
+    - "node_modules/**"
+    - ".git/**"
+    - "**/*.map"
+    - "**/*.log"
+    - ".env*"
+    - "*.tmp"
+  verification:
+    httpTimeout: 10000
+    ftpRetries: 3
+    cleanupVerificationFile: true

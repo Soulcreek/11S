@@ -38,7 +38,7 @@ try {
     }
     
     if (empty($tables)) {
-        echo "\n❌ NO TABLES FOUND - Database initialization needed!\n";
+        echo "\nNO TABLES FOUND - Database initialization needed!\n";
         echo "<br><br><a href='dashboard.php?force_init=1' style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>🚀 Initialize Database</a>";
     } else {
         echo "\n✅ Tables exist but may be empty\n";
@@ -46,7 +46,7 @@ try {
     }
     
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo "Error: " . $e->getMessage() . "\n";
 }
 
 echo "</pre>";

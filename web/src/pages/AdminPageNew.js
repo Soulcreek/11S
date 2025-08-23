@@ -233,7 +233,7 @@ const AdminPage = ({ onBackToMenu }) => {
                     color: '#dc2626',
                     marginBottom: '20px'
                 }}>
-                    ❌ Fehler: {error}
+                    Fehler: {error}
                 </div>
             )}
 
