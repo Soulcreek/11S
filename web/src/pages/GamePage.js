@@ -24,6 +24,14 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     timePerQuestion = 11
   } = gameConfig;
 
+  // Load admin settings
+  const adminSettings = JSON.parse(localStorage.getItem('adminGameSettings') || JSON.stringify({
+    allowExitDuringGame: true,
+    showTimerWarning: true,
+    allowSkipQuestions: false,
+    enableSoundEffects: true
+  }));
+
   // Game state
   const [gameState, setGameState] = useState('playing'); // 'playing', 'finished'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -462,6 +470,41 @@ const GamePage = ({ onBackToMenu, gameConfig = {} }) => {
     <div style={styles.container}>
       <div style={styles.gameContainer}>
         <div style={styles.header}>
+          {/* Back Button (if enabled in admin settings) */}
+          {adminSettings.allowExitDuringGame && (
+            <div style={{
+              position: 'absolute',
+              top: '15px',
+              left: '15px',
+              zIndex: 10
+            }}>
+              <button
+                onClick={() => {
+                  if (window.confirm('Spiel wirklich verlassen? Der Fortschritt geht verloren!')) {
+                    onBackToMenu();
+                  }
+                }}
+                style={{
+                  background: 'rgba(220, 38, 38, 0.9)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                }}
+              >
+                🚪 Verlassen
+              </button>
+            </div>
+          )}
+
           {/* Game Mode and Streak Info */}
           <div style={styles.gameInfoBar}>
             <div style={styles.gameModeInfo}>

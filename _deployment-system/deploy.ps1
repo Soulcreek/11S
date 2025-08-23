@@ -229,6 +229,40 @@ function Deploy-ViaFTP {
     # 1) Upload frontend build to httpdocs
     Upload-Directory -localDir $buildPath -remoteDir $remotePath
 
+    # 1.2) Auto-replace index.html with working-app.html if it exists
+    $workingAppPath = Join-Path $buildPath "working-app.html"
+    if (Test-Path $workingAppPath) {
+        Write-Step "Replacing index.html with working-app.html..."
+        $tempIndexPath = Join-Path $buildPath "index.html.backup"
+        $originalIndexPath = Join-Path $buildPath "index.html"
+        
+        # Backup original index.html
+        if (Test-Path $originalIndexPath) {
+            Copy-Item $originalIndexPath $tempIndexPath -Force
+        }
+        
+        # Copy working-app.html to index.html
+        Copy-Item $workingAppPath $originalIndexPath -Force
+        
+        # Upload the new index.html
+        if (Upload-FileViaFTP -LocalPath $originalIndexPath -RemotePath "$remotePath/index.html") {
+            $stats.Success++
+            Write-Success "Successfully replaced index.html with working-app.html"
+        } else {
+            $stats.Failed++
+            Write-Error "Failed to upload new index.html"
+        }
+        
+        # Restore original index.html
+        if (Test-Path $tempIndexPath) {
+            Copy-Item $tempIndexPath $originalIndexPath -Force
+            Remove-Item $tempIndexPath -Force
+        }
+    }
+    else {
+        Write-Info "working-app.html not found - using default index.html"
+    }
+
     # 1.5) Upload admin center to httpdocs/admin
     $adminPath = [Environment]::GetEnvironmentVariable("ADMIN_PATH")
     if (-not $adminPath) { $adminPath = "../admin" }
