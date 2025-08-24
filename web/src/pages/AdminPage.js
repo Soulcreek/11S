@@ -136,71 +136,80 @@ const AdminPage = ({ onBackToMenu }) => {
         } catch (err) { setError('Fehler beim Löschen des Benutzers'); }
     };
 
+
+    // --- Styles ---
+    const containerStyle = {
+        padding: '24px',
+        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        minHeight: '100vh',
+        boxSizing: 'border-box'
+    };
+    const headerStyle = {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: 'white',
+        padding: '18px 28px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+        marginBottom: '24px',
+        minHeight: '64px'
+    };
+    const navTabsStyle = {
+        background: 'white',
+        borderRadius: '12px',
+        padding: '12px 10px',
+        marginBottom: '24px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '10px'
+    };
+    const navButtonStyle = (active) => ({
+        background: active
+            ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+            : '#f8f9fa',
+        color: active ? 'white' : '#333',
+        border: active ? 'none' : '1px solid #ddd',
+        padding: '12px 18px',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '15px',
+        fontWeight: active ? 'bold' : 'normal',
+        textTransform: 'capitalize',
+        minWidth: '120px',
+        transition: 'background 0.2s, color 0.2s'
+    });
+    const backButtonStyle = {
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        color: 'white',
+        border: 'none',
+        padding: '10px 22px',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '15px',
+        fontWeight: 'bold',
+        boxShadow: '0 1px 4px rgba(16,185,129,0.10)'
+    };
+
     return (
-        <div style={{ 
-            padding: '20px', 
-            fontFamily: 'Arial, sans-serif',
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-            minHeight: '100vh'
-        }}>
+        <div style={containerStyle}>
             {/* Header with Back Button */}
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                background: 'white',
-                padding: '15px 20px',
-                borderRadius: '10px',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                marginBottom: '20px'
-            }}>
-                <h2 style={{ margin: 0, color: '#333' }}>🛠️ Admin Center</h2>
-                <button 
-                    onClick={onBackToMenu}
-                    style={{
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
-                    }}
-                >
+            <div style={headerStyle}>
+                <h2 style={{ margin: 0, color: '#333', fontWeight: 800, fontSize: '2rem', letterSpacing: '0.01em' }}>🛠️ Admin Center</h2>
+                <button onClick={onBackToMenu} style={backButtonStyle}>
                     🏠 Zurück zum Hauptmenü
                 </button>
             </div>
 
             {/* Navigation Tabs */}
-            <div style={{
-                background: 'white',
-                borderRadius: '10px',
-                padding: '15px',
-                marginBottom: '20px',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '10px'
-            }}>
+            <div style={navTabsStyle}>
                 {['dashboard', 'users', 'questions', 'settings'].map(tabName => (
                     <button
                         key={tabName}
                         onClick={() => setTab(tabName)}
-                        style={{
-                            background: tab === tabName 
-                                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                                : '#f8f9fa',
-                            color: tab === tabName ? 'white' : '#333',
-                            border: tab === tabName ? 'none' : '1px solid #ddd',
-                            padding: '12px 18px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: tab === tabName ? 'bold' : 'normal',
-                            textTransform: 'capitalize',
-                            minWidth: '120px'
-                        }}
+                        style={navButtonStyle(tab === tabName)}
                     >
                         {tabName === 'dashboard' && '📊 Dashboard'}
                         {tabName === 'users' && '👥 Benutzer'}
