@@ -275,7 +275,7 @@ const getStyles = (isMobile) => ({
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     fontFamily: 'Arial, sans-serif',
     position: 'relative',
     overflow: 'hidden',
@@ -299,7 +299,7 @@ const getStyles = (isMobile) => ({
   title: {
     fontSize: isMobile ? '32px' : '48px',
     fontWeight: 'bold',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     marginBottom: '10px',
@@ -464,7 +464,7 @@ const getStyles = (isMobile) => ({
   levelText: {
     fontSize: '14px',
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#10b981',
     minWidth: '60px'
   },
   xpBar: {
@@ -497,7 +497,7 @@ const getStyles = (isMobile) => ({
   statValue: {
     fontSize: '16px',
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#10b981',
     display: 'block'
   },
   statLabel: {

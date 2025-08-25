@@ -262,7 +262,7 @@ const AdminPage = ({ onBackToMenu }) => {
                         marginTop: '20px'
                     }}>
                         <div style={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                             color: 'white',
                             padding: '25px',
                             borderRadius: '12px',

@@ -1,68 +1,21 @@
-# Minimal .htaccess for admin directory
-# Basic security without breaking functionality
+# Green Glass Admin Center - Allow Access
+# Enable PHP and proper routing
 
-DirectoryIndex index.php
+RewriteEngine On
 
-# Only block sensitive files
-<Files "*.json">
-    Require all denied
+# Allow access to admin files
+<Files "*.php">
+    Require all granted
 </Files>
 
-<Files "*.sql">
-    Require all denied
+<Files "*.html">
+    Require all granted
 </Files>
 
-# Security headers
-<IfModule mod_headers.c>
-    Header always set X-Frame-Options DENY
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
+# PHP Error Display (temporarily for debugging)
+php_flag display_errors On
+php_flag display_startup_errors On
+php_value error_reporting "E_ALL"
 
-# PHP Security Settings
-<IfModule mod_php.c>
-    php_flag display_errors Off
-    php_flag log_errors On
-    php_value max_execution_time 30
-    php_value max_input_time 30
-    php_value memory_limit 128M
-    php_value post_max_size 8M
-    php_value upload_max_filesize 2M
-</IfModule>
-
-# Default document
-DirectoryIndex index.php
-
-# Pretty URLs for admin pages
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^dashboard/?$ dashboard.php [L,QSA]
-RewriteRule ^users/?$ user-management-enhanced.php [L,QSA]
-RewriteRule ^security/?$ security-dashboard.php [L,QSA]
-RewriteRule ^settings/?$ settings.php [L,QSA]
-RewriteRule ^questions/?$ question-management.php [L,QSA]
-RewriteRule ^generator/?$ question-generator.php [L,QSA]
-RewriteRule ^backup/?$ backup.php [L,QSA]
-RewriteRule ^setup/?$ setup-database.php [L,QSA]
-
-# Block common attack patterns
-RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
-RewriteCond %{QUERY_STRING} GLOBALS(=|[|\%[0-9A-Z]{0,2}) [OR]
-RewriteCond %{QUERY_STRING} _REQUEST(=|[|\%[0-9A-Z]{0,2}) [OR]
-RewriteCond %{QUERY_STRING} ^.*(\[|\]|\(|\)|<|>|ê|"|;|\?|\*|\=|\&|\%|\.\.|\%2e|\/|\%2f).* [NC,OR]
-RewriteCond %{QUERY_STRING} ^.*("|'|<|>|\{|\}|\||\\\|\^|\~|\[|\]|\`|\%|\$).* [NC]
-RewriteRule .* - [F]
-
-# Cache control for static assets
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/jpg "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/gif "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
-</IfModule>
+# Default index file
+DirectoryIndex login.php index.php index.html

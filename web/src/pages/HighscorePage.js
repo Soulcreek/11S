@@ -338,7 +338,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     fontFamily: 'Arial, sans-serif',
     padding: '20px'
   },
@@ -357,7 +357,7 @@ const styles = {
   },
   loadingSpinner: {
     border: '4px solid #f3f3f3',
-    borderTop: '4px solid #667eea',
+    borderTop: '4px solid #10b981',
     borderRadius: '50%',
     width: '40px',
     height: '40px',
@@ -383,7 +383,7 @@ const styles = {
   title: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
@@ -416,7 +416,7 @@ const styles = {
     transition: 'all 0.3s ease'
   },
   activeTab: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#10b981',
     color: 'white'
   },
   inactiveTab: {
@@ -561,7 +561,7 @@ const styles = {
     marginBottom: '30px'
   },
   statCard: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     borderRadius: '15px',
     padding: '20px',
     color: 'white',

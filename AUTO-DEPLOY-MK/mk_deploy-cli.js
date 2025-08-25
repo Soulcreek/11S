@@ -22,6 +22,10 @@ program
   .option('-b, --build', 'Run build before deployment')
   .option('-v, --verbose', 'Verbose logging');
 
+// Policy banner: remind operator about enforced remote admin path
+console.log('NOTICE: This deploy CLI enforces that admin files must be deployed to /httpdocs/admin on the remote host.');
+console.log('NOTICE: Do NOT upload package.json into /httpdocs; keep it in repo root.');
+
 // Global state
 let config = null;
 let manifest = {
@@ -68,6 +72,14 @@ function createWebUrl(targetConfig, filePath) {
     webPath = filePath.substring(filePath.indexOf('/httpdocs/') + '/httpdocs'.length);
   }
   
+  // If the path accidentally contains duplicated domain segments like /11seconds.de/11seconds.de/httpdocs,
+  // collapse it to a single occurrence.
+  const domainSeg = `/${domain}`;
+  if (webPath.includes(`${domainSeg}${domainSeg}`)) {
+    while (webPath.includes(`${domainSeg}${domainSeg}`)) {
+      webPath = webPath.replace(`${domainSeg}${domainSeg}`, domainSeg);
+    }
+  }
   // Ensure webPath starts with /
   if (!webPath.startsWith('/')) {
     webPath = '/' + webPath;
@@ -112,38 +124,84 @@ function resolveProjectFiles(projectConfig, parts, excludes) {
     if (!part) {
       throw new Error(`Part '${partName}' not found in project configuration`);
     }
-    
-    const basePath = projectConfig.localBuild || projectConfig.localSource;
+
+    // Allow per-part basePath override; fallback to project build/source
+    const basePath = (part.basePath && part.basePath.trim()) || projectConfig.localBuild || projectConfig.localSource;
     if (!fs.existsSync(basePath)) {
       throw new Error(`Source path not found: ${basePath}`);
     }
     
-    // Get included files
-    const includePatterns = part.include.map(pattern => 
+    // Build ignores: global excludes + per-part excludes
+    const ignorePatterns = [
+      ...excludes.map(ex => path.join(basePath, ex).replace(/\\/g, '/')),
+      ...((part.exclude || []).map(ex => path.join(basePath, ex).replace(/\\/g, '/')))
+    ];
+
+    // 1) Explicit file mappings (optional)
+    if (Array.isArray(part.files) && part.files.length > 0) {
+      for (const entry of part.files) {
+        let localPath;
+        let remotePath;
+        let webPath;
+        if (typeof entry === 'string') {
+          localPath = path.isAbsolute(entry) ? entry : path.join(basePath, entry);
+          const relativePath = path.relative(basePath, localPath);
+          remotePath = path.join(part.remotePath || '/', relativePath).replace(/\\/g, '/');
+          webPath = path.join(part.webPath || part.remotePath || '/', relativePath).replace(/\\/g, '/');
+          files.push({
+            localPath,
+            relativePath,
+            remotePath,
+            webPath,
+            part: partName,
+            size: fs.statSync(localPath).size
+          });
+        } else if (entry && typeof entry === 'object' && entry.local) {
+          localPath = path.isAbsolute(entry.local) ? entry.local : path.join(basePath, entry.local);
+          const relativePath = path.relative(basePath, localPath);
+          remotePath = (entry.remotePath || path.join(part.remotePath || '/', relativePath)).replace(/\\/g, '/');
+          webPath = (entry.webPath || path.join(part.webPath || part.remotePath || '/', relativePath)).replace(/\\/g, '/');
+          files.push({
+            localPath,
+            relativePath,
+            remotePath,
+            webPath,
+            part: partName,
+            size: fs.statSync(localPath).size
+          });
+        }
+      }
+    }
+
+    // 2) Pattern includes (default behavior)
+    const includePatterns = (part.include || []).map(pattern =>
       path.join(basePath, pattern).replace(/\\/g, '/')
     );
-    
-    const matchedFiles = glob.sync(includePatterns, { 
-      dot: false,
-      ignore: excludes.map(ex => path.join(basePath, ex).replace(/\\/g, '/'))
-    });
-    
-    for (const filePath of matchedFiles) {
-      const relativePath = path.relative(basePath, filePath);
-      const remotePath = path.join(part.remotePath || '/', relativePath).replace(/\\/g, '/');
-      const webPath = path.join(part.webPath || part.remotePath || '/', relativePath).replace(/\\/g, '/');
-      
-      files.push({
-        localPath: filePath,
-        relativePath: relativePath,
-        remotePath: remotePath,
-        webPath: webPath,
-        part: partName,
-        size: fs.statSync(filePath).size
+
+    if (includePatterns.length > 0) {
+      const matchedFiles = glob.sync(includePatterns, {
+        dot: false,
+        ignore: ignorePatterns
       });
+
+      for (const filePath of matchedFiles) {
+        const relativePath = path.relative(basePath, filePath);
+        const remotePath = path.join(part.remotePath || '/', relativePath).replace(/\\/g, '/');
+        const webPath = path.join(part.webPath || part.remotePath || '/', relativePath).replace(/\\/g, '/');
+
+        files.push({
+          localPath: filePath,
+          relativePath: relativePath,
+          remotePath: remotePath,
+          webPath: webPath,
+          part: partName,
+          size: fs.statSync(filePath).size
+        });
+      }
+      log('INFO', `Part '${partName}': found ${matchedFiles.length} files`);
+    } else {
+      log('INFO', `Part '${partName}': using only explicit file mappings (${(part.files || []).length})`);
     }
-    
-    log('INFO', `Part '${partName}': found ${matchedFiles.length} files`);
   }
   
   return files;
@@ -165,6 +223,22 @@ function validatePathMappings(projectConfig, targetConfig) {
     log('INFO', `✓ Build path exists: ${buildPath}`);
   } else {
     log('WARN', `Build path not found: ${buildPath} (will be created during build)`);
+  }
+
+  // Validate per-part basePaths when present (best-effort)
+  try {
+    const parts = Object.entries(projectConfig.parts || {});
+    for (const [name, part] of parts) {
+      if (part && part.basePath) {
+        if (fs.existsSync(part.basePath)) {
+          log('INFO', `✓ Part '${name}' basePath exists: ${part.basePath}`);
+        } else {
+          log('WARN', `Part '${name}' basePath not found: ${part.basePath}`);
+        }
+      }
+    }
+  } catch (e) {
+    // non-fatal
   }
   
   if (targetConfig.method === 'ftp') {
@@ -278,6 +352,37 @@ async function uploadViaFTP(files, ftpConfig, remoteRoot, targetConfig) {
       secure: false
     });
     
+    // Determine effective remote root relative to current server directory to avoid double domain paths
+    let effectiveRemoteRoot = (remoteRoot || '/').replace(/\\/g, '/');
+    try {
+      const pwd = await client.pwd();
+      if (program.opts().verbose) {
+        log('INFO', `DEBUG: Server PWD="${pwd}", configured remoteRoot="${effectiveRemoteRoot}"`);
+      }
+      // Ensure leading slash for both
+      const pwdNorm = ('/' + String(pwd || '').replace(/^\/+/, '')); // e.g. /11seconds.de
+      const rootNorm = ('/' + String(effectiveRemoteRoot || '').replace(/^\/+/, '')); // e.g. /11seconds.de/httpdocs
+      // If remote root already includes the current PWD as a prefix, keep it absolute
+      // If remote root repeats the domain segment present in PWD, strip the duplicate prefix
+      if (pwdNorm !== '/' && rootNorm.startsWith(pwdNorm + '/')) {
+        // Use only the path after PWD to avoid creating /<pwd>/<pwd>/...
+        effectiveRemoteRoot = rootNorm; // keep absolute path
+      } else if (pwdNorm !== '/' && (pwdNorm.endsWith('/' + targetConfig.domain) || pwdNorm.includes('/' + targetConfig.domain + '/')) && rootNorm.includes('/' + targetConfig.domain + '/')) {
+        // Both PWD and remote root contain the domain folder; prefer a single occurrence
+        const afterDomain = rootNorm.split('/' + targetConfig.domain).pop();
+        effectiveRemoteRoot = '/' + targetConfig.domain + (afterDomain || '');
+      } else {
+        effectiveRemoteRoot = rootNorm;
+      }
+    } catch (_) {
+      // Fallback to configured remoteRoot
+      effectiveRemoteRoot = ('/' + String(effectiveRemoteRoot || '').replace(/^\/+/, ''));
+    }
+    if (!effectiveRemoteRoot.startsWith('/')) effectiveRemoteRoot = '/' + effectiveRemoteRoot;
+    if (program.opts().verbose) {
+      log('INFO', `DEBUG: Using effectiveRemoteRoot="${effectiveRemoteRoot}"`);
+    }
+    
     let successCount = 0;
     let failCount = 0;
     
@@ -307,13 +412,14 @@ async function uploadViaFTP(files, ftpConfig, remoteRoot, targetConfig) {
           log('INFO', `DEBUG: remoteRoot="${remoteRoot}", file.remotePath="${file.remotePath}"`);
         }
         
-        const remotePath = path.join(remoteRoot, file.remotePath).replace(/\\/g, '/');
+  // Join effectiveRemoteRoot and file.remotePath safely (avoid absolute/relative mishaps)
+  const remotePath = `${(effectiveRemoteRoot || '').replace(/\/$/, '')}/${(file.remotePath || '').replace(/^\/+/, '')}`;
         
         if (program.opts().verbose) {
           log('INFO', `DEBUG: Final FTP path="${remotePath}"`);
         }
         
-        const remoteDir = path.dirname(remotePath);
+  const remoteDir = remotePath.split('/').slice(0, -1).join('/') || '/';
         
         // Ensure directory exists
         try {
@@ -523,7 +629,11 @@ async function verifyDeployment(verificationFile, targetConfig) {
 }
 
 function saveManifest() {
-  const manifestPath = path.join(__dirname, 'manifests', `deploy-${manifest.timestamp.replace(/[:.]/g, '-')}.json`);
+  const outDir = path.join(__dirname, 'manifests');
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+  const manifestPath = path.join(outDir, `deploy-${manifest.timestamp.replace(/[:.]/g, '-')}.json`);
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   log('SUCCESS', `Deployment manifest saved: ${path.basename(manifestPath)}`);
 }

@@ -395,7 +395,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'flex-start',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     padding: '20px'
   },
   settingsContainer: {
@@ -425,7 +425,7 @@ const styles = {
   title: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     backgroundClip: 'text',
     WebkitBackgroundClip: 'text',
     color: 'transparent',
@@ -455,8 +455,8 @@ const styles = {
     transition: 'all 0.3s ease'
   },
   activeTab: {
-    color: '#667eea',
-    borderBottom: '3px solid #667eea'
+    color: '#10b981',
+    borderBottom: '3px solid #10b981'
   },
   inactiveTab: {
     color: '#666'
@@ -501,7 +501,7 @@ const styles = {
     marginBottom: '25px'
   },
   levelBadge: {
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     color: 'white',
     borderRadius: '50px',
     padding: '10px 20px',
@@ -547,7 +547,7 @@ const styles = {
   statNumber: {
     fontSize: '24px',
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#10b981',
     display: 'block'
   },
   statLabel: {
@@ -592,7 +592,7 @@ const styles = {
   skillValue: {
     fontSize: '12px',
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#10b981',
     minWidth: '35px'
   },
   recentAchievements: {

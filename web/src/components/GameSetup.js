@@ -165,7 +165,7 @@ const GameSetup = ({ onStartGame, onBack }) => {
       <style jsx>{`
         .game-setup-container {
           min-height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
           display: flex;
           justify-content: center;
           align-items: center;
@@ -219,14 +219,14 @@ const GameSetup = ({ onStartGame, onBack }) => {
         }
 
         .mode-card:hover {
-          border-color: #667eea;
+          border-color: #10b981;
           transform: translateY(-2px);
           box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
 
         .mode-card.selected {
-          border-color: #667eea;
-          background: linear-gradient(135deg, #667eea, #764ba2);
+          border-color: #10b981;
+          background: linear-gradient(135deg, #10b981, #059669);
           color: white;
         }
 
@@ -258,14 +258,14 @@ const GameSetup = ({ onStartGame, onBack }) => {
         }
 
         .category-btn:hover, .difficulty-btn:hover {
-          border-color: #667eea;
+          border-color: #10b981;
           background: #f0f4ff;
         }
 
         .category-btn.selected, .difficulty-btn.selected {
-          background: linear-gradient(135deg, #667eea, #764ba2);
+          background: linear-gradient(135deg, #10b981, #059669);
           color: white;
-          border-color: #667eea;
+          border-color: #10b981;
         }
 
         .question-pool-info {
@@ -300,7 +300,7 @@ const GameSetup = ({ onStartGame, onBack }) => {
         }
 
         .btn-primary {
-          background: linear-gradient(135deg, #667eea, #764ba2);
+          background: linear-gradient(135deg, #10b981, #059669);
           color: white;
         }
 

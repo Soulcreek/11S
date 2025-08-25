@@ -271,7 +271,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     padding: '20px'
   },
   loadingContainer: {
@@ -279,7 +279,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
   },
   loadingText: {
     fontSize: '24px',
@@ -394,7 +394,7 @@ const styles = {
   resultsTitle: {
     fontSize: '36px',
     marginBottom: '40px',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     backgroundClip: 'text',
     WebkitBackgroundClip: 'text',
     color: 'transparent'

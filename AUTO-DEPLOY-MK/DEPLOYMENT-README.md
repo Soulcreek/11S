@@ -159,6 +159,32 @@ FTP_USER=your-ftp-username
 FTP_PASSWORD=your-ftp-password
 ```
 
+### IMPORTANT DEPLOYMENT POLICY
+
+By project policy, the Admin Center must always be deployed under the remote path `/httpdocs/admin` on the FTP host.
+Deploy tooling in this repository enforces that path. Also, do NOT upload `package.json` into `/httpdocs` — keep `package.json` in the repository root only.
+
+This README, the YAML config, and the deployment scripts state and enforce this rule.
+
+
+---
+
+## 🚦 **Port-Belegung (Gentlemen's Agreement)**
+
+Um Konflikte zu vermeiden, wenn mehrere Projekte auf demselben Entwickler-PC oder im selben Netzwerk laufen, halten wir uns an die folgende Port-Verteilung. Jedes Projekt hat einen primären Port für die Hauptanwendung und einen sekundären Port für Hilfsdienste oder alternative Konfigurationen.
+
+| Projekt-Name | Primärer Port (App) | Sekundärer Port (Service/DB) | Anmerkungen                          |
+| ------------ | ------------------- | ---------------------------- | ------------------------------------ |
+| **Panda**    | `3010`              | `3011`                       | Aktuelles Projekt (11S)              |
+| **11S**      | `3010`              | `3011`                       | Projekt "11S"                        |
+| **KKI**      | `3020`              | `3021`                       | Projekt "KKI"                        |
+| _Projekt D_  | `3030`              | `3031`                       | Für zukünftige Verwendung reserviert |
+| _Projekt E_  | `3040`              | `3041`                       | Für zukünftige Verwendung reserviert |
+
+**Regel:** Bevor ein Port verwendet wird, prüfe, ob er in dieser Liste bereits für ein anderes aktives Projekt reserviert ist.
+
+---
+
 ## 🎮 Usage
 
 ### One-Click Live Deployment

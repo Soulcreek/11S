@@ -9,17 +9,19 @@ defaults:
   excludes:
     - "*.tmp"
     - "*.log"
+    - "**/*.map" # exclude source maps from deploy
     - ".git/**"
     - ".gitignore"
-    - "README.md"
     - "node_modules/**"
     - ".env*"
-    - "deployment-*"
-    - "AUTO-DEPLOY-MK/**"
     - "_backup*/**"
     - "_documentation/**"
     - "_deployment-system/**"
-    - ".htaccess"
+    - "migrate-theme-colors.ps1" # theme migration scripts
+    - "theme-migration.ps1" # theme migration scripts
+    - "**/phpinfo.php" # diagnostic files
+    - "**/pdo-check.php" # diagnostic files
+    - "DESIGN-SYSTEM.md" # internal docs
 
 # Deployment targets
 # Path Logic:
@@ -29,23 +31,20 @@ defaults:
 # - FTP Final path: remoteRoot + remotePath = "/11seconds.de/httpdocs/admin"
 # - Web Final URL: https://domain + webPath = "https://11seconds.de/admin"
 #
+# IMPORTANT DEPLOYMENT POLICY:
+# All admin files MUST be deployed to the server path /httpdocs/admin.
+# The deploy tools in this repository enforce that remote admin target and
+# documentation must state this explicitly. Do NOT place package.json into
+# /httpdocs on the server as that may trigger unwanted runtime detection.
+#
+#
 # Environment Variables Required:
 # - FTP_USER: FTP username (e.g., "k302164_11s")
 # - FTP_PASSWORD: FTP password
 targets:
   production:
     method: ftp
-    remoteRoot: "/httpdocs" # Fixed: Just the web root, no domain duplication
-    domain: "11seconds.de"
-    ftp:
-      host: "ftp.11seconds.de"
-      user: "${FTP_USER}"
-      password: "${FTP_PASSWORD}"
-      timeout: 30000
-
-  admin-direct:
-    method: ftp
-    remoteRoot: "/httpdocs" # Fixed: Just the web root, no domain duplication
+    remoteRoot: "/httpdocs" # FTP web root at host (use absolute path to avoid double domain)
     domain: "11seconds.de"
     ftp:
       host: "ftp.11seconds.de"
@@ -55,99 +54,86 @@ targets:
 
   local:
     method: copy
-    localPath: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs-local"
-    domain: "localhost:5000"
+    localPath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\.local-deploy\\httpdocs"
+    domain: "localhost:3010"
 
 # Projects configuration
 projects:
   web:
-    localSource: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs"
-    localBuild: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\httpdocs"
-    buildCommand: "" # Build is already done, just upload httpdocs
+    # Source and build
+    localSource: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\web"
+    localBuild: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\web\\httpdocs" # This project uses httpdocs as build artifact
+    buildCommand: "npm ci && npm run build && if exist build (xcopy build\\* httpdocs\\ /s /e /y /i >NUL)"
 
-    # Project parts - different sections of the project
     parts:
-      default:
+      # Deploy the compiled SPA from httpdocs folder
+      app-httpdocs:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\web\\httpdocs"
         include:
           - "**/*"
-        remotePath: "/" # FTP path: /11seconds.de/httpdocs/
-        webPath: "/" # Web URL: https://11seconds.de/
-
-      api:
-        include:
-          - "../admin/**"
-        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
-        webPath: "/admin" # Web URL: https://11seconds.de/admin
-
-      admin:
-        include:
-          - "../admin/**"
-        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
-        webPath: "/admin" # Web URL: https://11seconds.de/admin
-
-      frontend:
-        include:
-          - "*.html"
-          - "*.css"
-          - "*.js"
-          - "httpdocs/**"
+        exclude:
+          - "**/*.map"
+          - "admin/**"
+          - "api/**"
         remotePath: "/"
+        webPath: "/"
 
-    # Verification settings
+      # 1:1 mirror of /admin directory from repo to /admin on host
+      admin:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\admin"
+        include:
+          - "**/*"
+        exclude:
+          - "**/phpinfo.php"
+          - "**/pdo-check.php"
+        remotePath: "/admin"
+        webPath: "/admin"
+
+      # 1:1 mirror of /api directory
+      api:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\api"
+        include:
+          - "**/*"
+        remotePath: "/api"
+        webPath: "/api"
+
+      # 1:1 mirror of /static directory
+      static:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S\\static"
+        include:
+          - "**/*"
+        remotePath: "/static"
+        webPath: "/static"
+
+      # Root-level PHP (only files at repo root)
+      root-php:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S"
+        include:
+          - "*.php"
+        remotePath: "/"
+        webPath: "/"
+
+      # Root-level assets that may need cache-busting (service worker, robots)
+      root-assets:
+        basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S"
+        include:
+          - "sw.js"
+          - "kill-sw.html"
+          - "robots.txt"
+          - "asset-manifest.json"
+        remotePath: "/"
+        webPath: "/"
+
+      # Example of pinning a special file with custom remote path (disabled by default)
+      # package-json-example:
+      #   basePath: "c:\\Users\\mako1\\OneDrive\\Dokumente\\GitHub\\11S"
+      #   files:
+      #     - { local: "package.json", remotePath: "/_meta/package.json", webPath: "/_meta/package.json" }
+
     verify:
       enabled: true
       fileTemplate: "deploy-verify-{timestamp}.html"
       urlTemplate: "https://{domain}/{file}"
-
-  admin:
-    localSource: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\admin"
-    localBuild: "c:\\Users\\Marcel\\Documents\\GitHub\\11S\\admin"
-    buildCommand: ""
-    parts:
-      default:
-        include:
-          - "**/*"
-        remotePath: "/admin" # FTP path: /11seconds.de/httpdocs/admin
-        webPath: "/admin" # Web URL: https://11seconds.de/admin
-    verify:
-      enabled: false
 
   # Example configurations for other frameworks
-  react-app:
-    localSource: "./src"
-    localBuild: "./build"
-    buildCommand: "npm run build"
-    parts:
-      default:
-        include: ["**/*"]
-        remotePath: "/"
-    verify:
-      enabled: true
-      fileTemplate: "deploy-verify-{timestamp}.html"
-      urlTemplate: "https://{domain}/{file}"
-
-  vue-app:
-    localSource: "./src"
-    localBuild: "./dist"
-    buildCommand: "npm run build"
-    parts:
-      default:
-        include: ["**/*"]
-        remotePath: "/"
-    verify:
-      enabled: true
-      fileTemplate: "deploy-verify-{timestamp}.html"
-      urlTemplate: "https://{domain}/{file}"
-
-  angular-app:
-    localSource: "./src"
-    localBuild: "./dist"
-    buildCommand: "ng build --prod"
-    parts:
-      default:
-        include: ["**/*"]
-        remotePath: "/"
-    verify:
-      enabled: true
-      fileTemplate: "deploy-verify-{timestamp}.html"
-      urlTemplate: "https://{domain}/{file}"
+  # Example templates can be re-enabled as needed

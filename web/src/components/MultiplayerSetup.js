@@ -199,7 +199,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'flex-start',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     padding: '20px'
   },
   setupContainer: {
@@ -229,7 +229,7 @@ const styles = {
   title: {
     fontSize: '28px',
     fontWeight: 'bold',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     backgroundClip: 'text',
     WebkitBackgroundClip: 'text',
     color: 'transparent',
@@ -340,7 +340,7 @@ const styles = {
   },
   modeButton: {
     padding: '12px 24px',
-    background: 'linear-gradient(45deg, #667eea, #764ba2)',
+    background: 'linear-gradient(45deg, #10b981, #059669)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',

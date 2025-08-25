@@ -1,0 +1,25 @@
+# Cache control for Netcup Apache
+<IfModule mod_headers.c>
+  # Never cache HTML documents
+  <FilesMatch "\.(html?)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # Force immediate update of service worker
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header unset ETag
+  </Files>
+
+  # Long cache for hashed static assets
+  <Location "/static/">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </Location>
+</IfModule>
+
+# Gzip compression (optional)
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
