@@ -22,8 +22,10 @@ Diese Dokumentation beschreibt das aktuelle Deployment-System für das 11Seconds
 
 ### Backend (PHP Admin)
 
-- **Location**: `admin/` Ordner
-- **Glass Design Files**:
+- Location (repo): `admin/`
+- Deployment target (remote): `/httpdocs/admin`
+- Do not deploy Node artifacts into `/httpdocs` (never place `package.json` there)
+- Glass Design Files:
   - `admin/includes/modern-glass-style.php` (Zentrale Design-Datei)
   - `admin/media-management-glass.php` (Medien & Branding)
   - `admin/security-dashboard-glass.php` (Security Dashboard)
@@ -31,8 +33,8 @@ Diese Dokumentation beschreibt das aktuelle Deployment-System für das 11Seconds
 
 ### API
 
-- **Location**: `api/` Ordner
-- **Datenbankverbindung**: MySQL/MariaDB über PDO
+- Location: `admin/api.php` (Admin JSON API)
+- Datenbank: MySQL/MariaDB via PDO, Konfiguration über `config/.env` auf dem Server
 
 ## 🚀 Deployment-System
 
@@ -76,6 +78,10 @@ powershell -ExecutionPolicy Bypass -File ai-deploy.ps1 -Action build
 powershell -ExecutionPolicy Bypass -File setup-ftp-credentials.ps1
 ```
 
+Zusätzlich:
+
+- ✅ Syntax Check: All — führt `scripts/check-syntax.ps1` aus und blockiert Deploys bei Syntaxfehlern
+
 #### NPM Scripts (package.json)
 
 ```bash
@@ -98,12 +104,13 @@ npm run dev
 - [ ] Alle Admin-Files auf Glass Design umgestellt
 - [ ] React Build erfolgreich mit neuer Theme
 - [ ] FTP Credentials konfiguriert
+ - [ ] Syntax-Checks (PHP/PS/JS/JSON) erfolgreich
 
 #### Deployment Steps
 
 1. **Build Package**: `ai-deploy.ps1 -Action build`
 2. **Test Deployment**: `npm run deploy-test`
-3. **Live Deployment**: `npm run deploy-live`
+3. **Live Deployment**: `npm run deploy-live` (oder VS Code Task „🤖 AI Deploy to Netcup“)
 4. **Status Check**: `ai-deploy.ps1 -Action status`
 
 #### Post-Deployment
@@ -159,7 +166,7 @@ npm run dev
 │   │   ├── components/           # React Components (Updated)
 │   │   └── pages/               # React Pages (Updated)
 │   └── httpdocs/               # Build Output
-├── api/                          # Backend API
+├── admin/api.php                 # Admin JSON API (Endpunkte siehe unten)
 ├── static/                       # Static Assets
 ├── AUTO-DEPLOY-MK/              # Deployment System
 │   ├── mk_deployment-config.yaml # Deploy Config
@@ -168,7 +175,7 @@ npm run dev
 └── setup-ftp-credentials.ps1   # FTP Setup
 ```
 
-## 🔒 Security Features
+## 🔒 Security & Diagnostics
 
 ### FTP Credentials Storage
 
@@ -176,11 +183,24 @@ npm run dev
 - **Encryption**: SecureString (Windows DPAPI)
 - **Environment**: `$env:FTP_USER`, `$env:FTP_PASSWORD`
 
-### Admin Purge System
+### Deployment Policy
 
-- **Pre-Deploy**: Automatische Bereinigung alter Admin-Files
-- **Verification**: HTML-basierte Deployment-Verifizierung
-- **Rollback**: Manifest-basierte Rollback-Möglichkeit
+- Admin-Dateien werden ausschließlich nach `/httpdocs/admin` deployed.
+- Niemals `package.json` oder Build-Tools nach `/httpdocs` kopieren.
+- Secrets liegen in `/httpdocs/config/.env` (nicht im Repo commiten).
+
+### Diagnostics Endpoints
+
+Öffentlich (keine Token nötig):
+- GET `/admin/api.php?action=health` — Readiness (DB-Ping)
+- GET `/admin/api.php?action=integrity-lite` — Read-only Integritäts-Check
+
+Token-geschützt (ADMIN_RESET_TOKEN):
+- GET `/admin/api.php?action=integrity-check&token=...` — Voller Integritäts-Check inkl. Write-Probe
+- GET `/admin/api.php?action=tail-api-log&token=...` — Letzte ~200 Zeilen aus dem API-Error-Log
+
+Admin-Reset (gesicherter Remote-Flow):
+- Skript injiziert temporär einen Token in `/httpdocs/config/.env`, ruft Reset auf und entfernt den Token wieder.
 
 ## 🌍 Live URLs
 
@@ -245,10 +265,14 @@ dir web\httpdocs
 
 # Validate Glass Theme
 Start-Process "admin/media-management-glass.php"
+
+# Run syntax checks only
+powershell -ExecutionPolicy Bypass -File scripts/check-syntax.ps1
 ```
 
 ---
 
 **Created**: 2025-08-24  
-**Version**: Glass Theme v1.0  
+**Updated**: 2025-08-25  
+**Version**: Glass Theme v1.1  
 **Status**: ✅ Ready for Production Deployment

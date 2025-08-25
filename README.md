@@ -69,6 +69,31 @@ IMPORTANT DEPLOYMENT POLICY:
 - Admin files MUST always be uploaded to the remote path `/httpdocs/admin` on the FTP host.
 - Never upload `package.json` into `/httpdocs` — keep it in the repository root.
 
+## 🩺 Diagnostics & Admin API
+
+Public, safe checks (no token needed):
+- GET `https://11seconds.de/admin/api.php?action=health` — readiness (DB ping)
+- GET `https://11seconds.de/admin/api.php?action=integrity-lite` — read-only integrity snapshot
+
+Token-gated diagnostics (requires ADMIN_RESET_TOKEN):
+- GET `.../admin/api.php?action=integrity-check&token=...` — full integrity incl. write probe
+- GET `.../admin/api.php?action=tail-api-log&token=...` — last ~200 lines of server API error log
+
+Authentication:
+- POST `.../admin/api.php?action=login` — username or email + password; only role=admin accepted
+
+Secure admin reset flow is available via scripts (inject one-time token → call reset → remove token).
+
+## ✅ Syntax Checks (pre-deploy gate)
+
+Before deployment, the CI/Task runs cross-language syntax checks:
+- PHP: recursive `php -l`
+- PowerShell: parse/AST check
+- JS: `node --check`
+- JSON: schema-free validation
+
+You can run them locally via the VS Code task “✅ Syntax Check: All” or call `scripts/check-syntax.ps1`.
+
 ## 🔑 **Quick Start**
 
 1. `git clone`

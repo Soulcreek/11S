@@ -17,59 +17,72 @@
             --gradient-bg: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--gradient-bg);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-primary);
-            overflow: hidden;
-        }
-
-        /* Animated Background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 70% 60%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 20% 80%, rgba(5, 150, 105, 0.1) 0%, transparent 50%);
-            animation: float 15s ease-in-out infinite;
-            z-index: -1;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.8; }
-            50% { transform: translateY(-20px) rotate(2deg); opacity: 1; }
-        }
-
-        /* Login Container */
-        .login-container {
-            background: var(--glass-green);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: var(--shadow-glass);
-            width: 100%;
-            max-width: 420px;
-            position: relative;
-            animation: slideIn 0.6s ease-out;
-        }
-
-        @keyframes slideIn {
+        <?php
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/admin',
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+        session_start();
+        ?>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Admin Login</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b1726; color:#e6eefc; display:flex; align-items:center; justify-content:center; height:100vh; margin:0 }
+                .card { background:#12223a; padding:24px 28px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.35); width:360px; }
+                h1 { margin:0 0 14px; font-size:20px; }
+                label { display:block; font-size:12px; opacity:.8; margin:10px 0 6px }
+                input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #31486b; background:#0f1c30; color:#e6eefc }
+                button { margin-top:14px; width:100%; padding:10px 12px; background:#2e7d32; color:white; border:0; border-radius:8px; cursor:pointer }
+                .error { color:#ff8080; font-size:12px; margin-top:8px; min-height:1em }
+            </style>
+            <meta http-equiv="Cache-Control" content="no-store" />
+            <meta http-equiv="Pragma" content="no-cache" />
+            <meta http-equiv="Expires" content="0" />
+            <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        </head>
+        <body>
+            <div class="card">
+                <h1>Admin Login</h1>
+                <form id="loginForm" autocomplete="on">
+                    <label for="username">Username or Email</label>
+                    <input id="username" name="username" placeholder="admin or admin@domain.com" autocomplete="username" required />
+                    <label for="password">Password</label>
+                    <input id="password" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+                    <button type="submit">Sign in</button>
+                    <div class="error" id="err"></div>
+                </form>
+            </div>
+            <script>
+                const form = document.getElementById('loginForm');
+                const err = document.getElementById('err');
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    err.textContent = '';
+                    const fd = new FormData(form);
+                    try {
+                        const res = await fetch('api.php?action=login', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
+                        const text = await res.text();
+                        let data;
+                        try { data = JSON.parse(text); } catch { data = { success:false, message: 'Invalid JSON', raw: text }; }
+                        if (!res.ok || !data.success) {
+                            err.textContent = data.message || `Login failed (${res.status})`;
+                            return;
+                        }
+                        location.href = 'index.php';
+                    } catch (ex) {
+                        err.textContent = 'Network error';
+                    }
+                });
+            </script>
+        </body>
+        </html>
             from { 
                 opacity: 0; 
                 transform: translateY(30px) scale(0.9); 
@@ -365,7 +378,7 @@
                 if (result.success) {
                     loginText.textContent = '✅ Login successful!';
                     setTimeout(() => {
-                        window.location.href = 'index.html';
+                        window.location.href = 'index.php';
                     }, 1000);
                 } else {
                     throw new Error(result.error || 'Login failed');

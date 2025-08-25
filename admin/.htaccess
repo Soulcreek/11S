@@ -1,21 +1,31 @@
-# Green Glass Admin Center - Allow Access
-# Enable PHP and proper routing
+# Green Glass Admin Center - Apache/.htaccess
+# Enforce PHP handling and disable Passenger in this directory
+
+# Disable Phusion Passenger here to avoid intercepting /admin as an app
+PassengerEnabled off
 
 RewriteEngine On
+
+# Force directory index to login.php when requesting /admin
+DirectoryIndex login.php index.php index.html
+# Do not rewrite if the request points to an existing file or directory
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+RewriteRule ^$ login.php [L]
 
 # Allow access to admin files
 <Files "*.php">
     Require all granted
+    # Ensure PHP is handled by default PHP handler (host-provided)
+    # AddHandler directives are host-specific; we rely on default PHP-FPM
 </Files>
 
 <Files "*.html">
     Require all granted
 </Files>
 
-# PHP Error Display (temporarily for debugging)
-php_flag display_errors On
-php_flag display_startup_errors On
-php_value error_reporting "E_ALL"
-
-# Default index file
-DirectoryIndex login.php index.php index.html
+# PHP Error Display (disabled for production)
+php_flag display_errors Off
+php_flag display_startup_errors Off
+php_value error_reporting "0"

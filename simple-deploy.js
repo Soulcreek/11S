@@ -16,6 +16,7 @@ const deployMap = {
     'admin/session.php': '/httpdocs/admin/session.php',
     'admin/users.html': '/httpdocs/admin/users.html',
     'admin/.htaccess': '/httpdocs/admin/.htaccess',
+    'admin/db-test.php': '/httpdocs/admin/db-test.php',
     'config/.env': '/httpdocs/config/.env',
     'index.html': '/httpdocs/index.html'
 };
@@ -36,6 +37,12 @@ async function runDeploy({ dryRun = false } = {}) {
         password: process.env.FTP_PASSWORD,
         secure: false
     };
+
+    // Optional secure override via env
+    const secureEnv = (process.env.FTP_SECURE || '').toLowerCase();
+    if (secureEnv === '1' || secureEnv === 'true') {
+        ftpConfig.secure = true;
+    }
 
     if (!dryRun && (!ftpConfig.user || !ftpConfig.password)) {
         logger.error('Missing FTP credentials. Set FTP_USER and FTP_PASSWORD or run with --dry-run.');

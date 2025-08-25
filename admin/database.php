@@ -116,14 +116,30 @@ class Database {
      */
     private function ensureCompatibility() {
         try {
-            $dbName = $this->config['database'];
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'");
-            $stmt->execute([$dbName]);
-            $row = $stmt->fetch();
-            $hasRole = ($row && isset($row['cnt']) && $row['cnt'] > 0);
-            if (! $hasRole) {
-                // Add role column with safe default 'user'
+            // Helper to check column existence
+            $columnExists = function($table, $column) {
+                $dbName = $this->config['database'];
+                $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+                $stmt->execute([$dbName, $table, $column]);
+                return (int)$stmt->fetchColumn() > 0;
+            };
+
+            // users.role
+            if (!$columnExists('users', 'role')) {
                 $this->pdo->exec("ALTER TABLE users ADD COLUMN role ENUM('admin','user') NOT NULL DEFAULT 'user'");
+                @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . "Added users.role\n", FILE_APPEND | LOCK_EX);
+            }
+
+            // users.active
+            if (!$columnExists('users', 'active')) {
+                $this->pdo->exec("ALTER TABLE users ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1");
+                @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . "Added users.active\n", FILE_APPEND | LOCK_EX);
+            }
+
+            // questions.active (optional: used by filters)
+            if (!$columnExists('questions', 'active')) {
+                $this->pdo->exec("ALTER TABLE questions ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1");
+                @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . "Added questions.active\n", FILE_APPEND | LOCK_EX);
             }
         } catch (PDOException $e) {
             // Log to file in admin folder if writable, otherwise ignore silently to avoid breaking startup
@@ -133,20 +149,56 @@ class Database {
     }
 
     private function createSecureUsers() {
-        // Sichere Admin-User erstellen
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
-        $stmt->execute();
-        
-        if ($stmt->fetchColumn() == 0) {
-            // NEUE SICHERE ADMIN-ZUGÄNGE
-            $adminHash = password_hash('AdminSecure2024!', PASSWORD_DEFAULT);
-            $testHash = password_hash('TestGame123!', PASSWORD_DEFAULT);
-            
-            $this->pdo->prepare("INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, 'admin', 1)")
-                     ->execute(['administrator', 'admin@11seconds.de', $adminHash]);
-                     
-            $this->pdo->prepare("INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, 'user', 1)")
-                     ->execute(['testuser', 'test@11seconds.de', $testHash]);
+        // Create admin/test users if not present; be idempotent and tolerant to duplicates
+        try {
+            $adminExists = (int)$this->pdo->query("SELECT COUNT(*) FROM users WHERE role='admin'")->fetchColumn() > 0;
+
+            // Candidate accounts
+            $adminUser = ['administrator', 'admin@11seconds.de'];
+            $testUser  = ['testuser', 'test@11seconds.de'];
+
+            // Helper to check existence by username or email
+            $exists = function($username, $email) {
+                $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+                $stmt->execute([$username, $email]);
+                return (int)$stmt->fetchColumn() > 0;
+            };
+
+            // Ensure at least one admin user
+            if (!$adminExists) {
+                if (!$exists($adminUser[0], $adminUser[1])) {
+                    $adminHash = password_hash('AdminSecure2024!', PASSWORD_DEFAULT);
+                    try {
+                        $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, 'admin', 1)");
+                        $stmt->execute([$adminUser[0], $adminUser[1], $adminHash]);
+                        @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . "Inserted default admin user\n", FILE_APPEND | LOCK_EX);
+                    } catch (PDOException $ie) {
+                        // Ignore duplicate key errors gracefully
+                        if ($ie->getCode() !== '23000') {
+                            throw $ie;
+                        }
+                    }
+                }
+            }
+
+            // Optional test account (only if neither username nor email exists)
+            if (!$exists($testUser[0], $testUser[1])) {
+                $testHash = password_hash('TestGame123!', PASSWORD_DEFAULT);
+                try {
+                    $stmt = $this->pdo->prepare("INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, 'user', 1)");
+                    $stmt->execute([$testUser[0], $testUser[1], $testHash]);
+                    @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . "Inserted default test user\n", FILE_APPEND | LOCK_EX);
+                } catch (PDOException $ie) {
+                    if ($ie->getCode() !== '23000') {
+                        throw $ie;
+                    }
+                }
+            }
+
+        } catch (PDOException $e) {
+            // Log and continue without failing startup
+            $msg = "[CreateUsers] " . $e->getMessage() . "\n";
+            @file_put_contents(__DIR__ . '/schema-compat.log', date('[Y-m-d H:i:s] ') . $msg, FILE_APPEND | LOCK_EX);
         }
     }
 

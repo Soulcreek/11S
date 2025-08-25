@@ -2,6 +2,25 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "✅ Syntax Check: All",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/check-syntax.ps1"
+			],
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "🤖 AI Deploy to Netcup",
 			"type": "shell",
 			"command": "powershell",
@@ -16,6 +35,7 @@
 				"production",
 				"-Verbose"
 			],
+			"dependsOn": ["✅ Syntax Check: All"],
 			"group": {
 				"kind": "build",
 				"isDefault": true
